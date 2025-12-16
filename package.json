@@ -3,9 +3,14 @@
     "version": "0.1.0",
     "description": "n8n community node for Microsoft Dataverse (Power Platform)",
     "license": "MIT",
-    "homepage": "https://example.com",
+    "homepage": "https://github.com/wtyeung/n8n-nodes-ms-dataverse#readme",
     "keywords": [
-        "n8n-community-node-package"
+        "n8n-community-node-package",
+        "n8n",
+        "dataverse",
+        "microsoft",
+        "power-platform",
+        "dynamics-365"
     ],
     "author": {
         "name": "Tim Yeung",
@@ -13,7 +18,7 @@
     },
     "repository": {
         "type": "git",
-        "url": ""
+        "url": "git+https://github.com/wtyeung/n8n-nodes-ms-dataverse.git"
     },
    "scripts": {
 		"build": "n8n-node build",
