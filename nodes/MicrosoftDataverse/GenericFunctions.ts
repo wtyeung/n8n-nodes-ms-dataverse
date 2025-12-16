@@ -3,7 +3,7 @@ import type {
 	ILoadOptionsFunctions,
 	IDataObject,
 	IHttpRequestMethods,
-	IRequestOptions,
+	IHttpRequestOptions,
 	INodePropertyOptions,
 	INodeListSearchResult,
 } from 'n8n-workflow';
@@ -19,11 +19,11 @@ export async function dataverseApiRequest(
 	endpoint: string,
 	body?: IDataObject,
 	qs?: IDataObject,
-): Promise<any> {
+): Promise<IDataObject> {
 	const credentials = await this.getCredentials('microsoftDataverseOAuth2Api');
 	const environmentUrl = credentials.environmentUrl as string;
 
-	const options: IRequestOptions = {
+	const options: IHttpRequestOptions = {
 		method,
 		url: `${environmentUrl}/api/data/v9.2${endpoint}`,
 		headers: {
@@ -40,7 +40,7 @@ export async function dataverseApiRequest(
 	}
 
 	try {
-		return await this.helpers.requestWithAuthentication.call(
+		return await this.helpers.httpRequestWithAuthentication.call(
 			this,
 			'microsoftDataverseOAuth2Api',
 			options,

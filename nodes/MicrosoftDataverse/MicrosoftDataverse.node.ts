@@ -39,6 +39,7 @@ export class MicrosoftDataverse implements INodeType {
 		},
 		inputs: ['main'],
 		outputs: ['main'],
+		usableAsTool: true,
 		credentials: [
 			{
 				name: 'microsoftDataverseOAuth2Api',
@@ -82,29 +83,34 @@ export class MicrosoftDataverse implements INodeType {
 					let result: INodeExecutionData | INodeExecutionData[];
 
 					switch (operation) {
-						case 'create':
+						case 'create': {
 							const createResult = await createRecord.call(this, table, i);
 							result = { json: createResult, pairedItem: { item: i } };
 							break;
+						}
 
-						case 'get':
+						case 'get': {
 							const getResult = await getRecord.call(this, table, i);
 							result = { json: getResult, pairedItem: { item: i } };
 							break;
+						}
 
-						case 'getMany':
+						case 'getMany': {
 							result = await getManyRecords.call(this, table, i);
 							break;
+						}
 
-						case 'update':
+						case 'update': {
 							const updateResult = await updateRecord.call(this, table, i);
 							result = { json: updateResult, pairedItem: { item: i } };
 							break;
+						}
 
-						case 'delete':
+						case 'delete': {
 							const deleteResult = await deleteRecord.call(this, table, i);
 							result = { json: deleteResult, pairedItem: { item: i } };
 							break;
+						}
 
 						default:
 							throw new NodeOperationError(

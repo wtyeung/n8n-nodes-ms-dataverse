@@ -14,7 +14,7 @@ export interface DataverseEntity {
 
 export interface DataverseApiResponse {
 	value?: IDataObject[];
-	[key: string]: any;
+	[key: string]: unknown;
 }
 
 export interface FieldValue {
