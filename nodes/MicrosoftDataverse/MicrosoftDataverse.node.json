@@ -1,0 +1,19 @@
+{
+	"node": "n8n-nodes-ms-dataverse.microsoftDataverse",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": ["Data & Storage", "Productivity"],
+	"resources": {
+		"credentialDocumentation": [
+			{
+				"url": "https://docs.microsoft.com/en-us/power-apps/developer/data-platform/authenticate-oauth"
+			}
+		],
+		"primaryDocumentation": [
+			{
+				"url": "https://docs.microsoft.com/en-us/power-apps/developer/data-platform/webapi/overview"
+			}
+		]
+	},
+	"alias": ["Power Platform", "Dynamics 365", "Common Data Service"]
+}
