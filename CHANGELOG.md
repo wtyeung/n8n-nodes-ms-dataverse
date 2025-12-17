@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2] - 2024-12-17
+
+### Added
+- **Custom Authentication Option**: New "Options" section with toggle for custom access token
+- Access token field in Options (appears when "Use Custom Authentication" is enabled)
+- Support for using tokens from webhooks or previous nodes via expressions
+- Safe fallback to OAuth2 if custom auth is enabled but no token provided
+
+### Changed
+- Added collapsible Options section (similar to other n8n nodes)
+- Access token can be dynamically mapped from workflow data
+- Updated documentation with custom authentication examples
+
+### Use Cases
+- Receive API calls with bearer tokens in webhooks and use them to interact with Dataverse
+- Chain authentication from other nodes without storing credentials
+- Dynamic token-based workflows
+
+## [0.1.1] - 2024-12-16
+
+### Fixed
+- Linting errors: updated to use IHttpRequestOptions
+- Added proper icon to credentials
+
 ## [0.1.0] - 2024-12-16
 
 ### Added

@@ -15,6 +15,7 @@ import {
 	getOperationFields,
 	updateOperationFields,
 	getManyOperationFields,
+	optionsDescription,
 } from './descriptions';
 import {
 	createRecord,
@@ -61,6 +62,7 @@ export class MicrosoftDataverse implements INodeType {
 			...getOperationFields,
 			...updateOperationFields,
 			...getManyOperationFields,
+			optionsDescription,
 		],
 	};
 

@@ -18,7 +18,7 @@ export async function createRecord(
 	const fields = this.getNodeParameter('fields.field', itemIndex, []) as FieldValue[];
 	const body = fieldsToObject(fields);
 
-	return await dataverseApiRequest.call(this, 'POST', `/${table}`, body);
+	return await dataverseApiRequest.call(this, 'POST', `/${table}`, body, undefined, itemIndex);
 }
 
 /**
@@ -47,7 +47,7 @@ export async function getRecord(
 		qs.$select = selectFields;
 	}
 
-	return await dataverseApiRequest.call(this, 'GET', `/${table}(${recordIdentifier})`, undefined, qs);
+	return await dataverseApiRequest.call(this, 'GET', `/${table}(${recordIdentifier})`, undefined, qs, itemIndex);
 }
 
 /**
@@ -75,6 +75,7 @@ export async function getManyRecords(
 			`/${table}`,
 			undefined,
 			qs,
+			itemIndex,
 		)) as DataverseApiResponse;
 
 		const records = (response.value || []) as IDataObject[];
@@ -90,7 +91,7 @@ export async function getManyRecords(
 
 		const response = (await dataverseApiRequest.call(this, 'GET', `/${table}`, undefined, {
 			fetchXml: fetchXml,
-		})) as DataverseApiResponse;
+		}, itemIndex)) as DataverseApiResponse;
 
 		const records = (response.value || []) as IDataObject[];
 		for (const record of records) {
@@ -121,6 +122,8 @@ export async function updateRecord(
 		'PATCH',
 		`/${table}(${recordId})`,
 		body,
+		undefined,
+		itemIndex,
 	);
 
 	return (response as IDataObject) || { success: true, id: recordId };
@@ -136,7 +139,7 @@ export async function deleteRecord(
 ): Promise<IDataObject> {
 	const recordId = this.getNodeParameter('recordId', itemIndex) as string;
 
-	await dataverseApiRequest.call(this, 'DELETE', `/${table}(${recordId})`);
+	await dataverseApiRequest.call(this, 'DELETE', `/${table}(${recordId})`, undefined, undefined, itemIndex);
 
 	return { success: true, id: recordId };
 }

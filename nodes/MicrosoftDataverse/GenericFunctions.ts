@@ -19,9 +19,35 @@ export async function dataverseApiRequest(
 	endpoint: string,
 	body?: IDataObject,
 	qs?: IDataObject,
+	itemIndex?: number,
 ): Promise<IDataObject> {
-	const credentials = await this.getCredentials('microsoftDataverseOAuth2Api');
-	const environmentUrl = credentials.environmentUrl as string;
+	// Check if using custom authentication from options
+	let useCustomAuth = false;
+	let accessTokenOverride = '';
+	let environmentUrl = '';
+
+	if (itemIndex !== undefined && this.getNodeParameter) {
+		const options = this.getNodeParameter('options', itemIndex, {}) as IDataObject;
+		useCustomAuth = options.useCustomAuth as boolean || false;
+		accessTokenOverride = options.accessToken as string || '';
+	}
+
+	// Get environment URL from credentials
+	try {
+		const credentials = await this.getCredentials('microsoftDataverseOAuth2Api');
+		environmentUrl = credentials.environmentUrl as string;
+	} catch (error) {
+		if (!useCustomAuth) {
+			throw new NodeOperationError(
+				this.getNode(),
+				'OAuth2 credentials are required when not using custom authentication.',
+			);
+		}
+		throw new NodeOperationError(
+			this.getNode(),
+			'Environment URL is required. Please configure OAuth2 credentials to provide the environment URL.',
+		);
+	}
 
 	const options: IHttpRequestOptions = {
 		method,
@@ -35,16 +61,26 @@ export async function dataverseApiRequest(
 		json: true,
 	};
 
+	// If access token override is provided, use it instead of OAuth2
+	if (accessTokenOverride) {
+		options.headers!.Authorization = `Bearer ${accessTokenOverride}`;
+	}
+
 	if (method === 'POST' || method === 'PATCH') {
 		options.headers!.Prefer = 'return=representation';
 	}
 
 	try {
-		return await this.helpers.httpRequestWithAuthentication.call(
-			this,
-			'microsoftDataverseOAuth2Api',
-			options,
-		);
+		// Use direct HTTP request if custom auth is enabled, otherwise use OAuth2
+		if (useCustomAuth && accessTokenOverride) {
+			return await this.helpers.httpRequest(options);
+		} else {
+			return await this.helpers.httpRequestWithAuthentication.call(
+				this,
+				'microsoftDataverseOAuth2Api',
+				options,
+			);
+		}
 	} catch (error) {
 		throw new NodeOperationError(this.getNode(), error);
 	}

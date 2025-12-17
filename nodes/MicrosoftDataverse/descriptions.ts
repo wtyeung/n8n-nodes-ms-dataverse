@@ -59,6 +59,39 @@ export const operationDescription: INodeProperties = {
 	default: 'get',
 };
 
+export const optionsDescription: INodeProperties = {
+	displayName: 'Options',
+	name: 'options',
+	type: 'collection',
+	placeholder: 'Add Option',
+	default: {},
+	options: [
+		{
+			displayName: 'Use Custom Authentication',
+			name: 'useCustomAuth',
+			type: 'boolean',
+			default: false,
+			description: 'Whether to provide a custom access token instead of using OAuth2 credentials',
+		},
+		{
+			displayName: 'Access Token',
+			name: 'accessToken',
+			type: 'string',
+			typeOptions: {
+				password: true,
+			},
+			displayOptions: {
+				show: {
+					useCustomAuth: [true],
+				},
+			},
+			default: '',
+			description: 'Provide an access token (e.g., from webhook headers or previous nodes)',
+			placeholder: '={{$json.headers.authorization.replace("Bearer ", "")}}',
+		},
+	],
+};
+
 export const tableDescription: INodeProperties = {
 	displayName: 'Table',
 	name: 'table',

@@ -68,7 +68,9 @@ This node uses Microsoft OAuth2 authentication to connect to Dataverse.
     - **Dynamics CRM > user_impersonation** (Delegated)
 11. Grant admin consent if required
 
-### Configuring Credentials in n8n
+### Configuring Authentication in n8n
+
+#### Option 1: OAuth2 (Default - Recommended)
 
 1. In n8n, create new credentials of type **Microsoft Dataverse OAuth2 API**
 2. Enter your **Environment URL** (e.g., `https://yourorg.crm.dynamics.com`)
@@ -76,6 +78,20 @@ This node uses Microsoft OAuth2 authentication to connect to Dataverse.
 4. Enter the **Client Secret** from your Azure app registration
 5. Click **Connect my account** and authorize the application
 6. Test the connection
+
+#### Option 2: Custom Access Token (From webhook or another node)
+
+1. Configure OAuth2 credentials (still needed for environment URL)
+2. In the node, scroll to **Options** section at the bottom
+3. Click **Add Option** and enable **Use Custom Authentication**
+4. In the **Access Token** field, map the token from:
+   - Webhook header: `={{$json.headers.authorization.replace("Bearer ", "")}}`
+   - Previous node: `={{$node["PreviousNode"].json["access_token"]}}`
+   - Or any expression that provides the token
+
+**Note:** Access tokens typically expire after a certain period. If you need automatic token refresh, use the OAuth2 method instead.
+
+**Example Use Case:** Receive a webhook with an Authorization header, extract the token, and use it to interact with Dataverse without storing the token in credentials.
 
 ## Compatibility
 
