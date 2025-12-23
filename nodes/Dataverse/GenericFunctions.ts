@@ -174,7 +174,14 @@ export async function getTableFieldsForDisplay(
 			},
 		)) as DataverseApiResponse;
 
-		const attributes = (response.value || []) as any[];
+		const attributes = (response.value || []) as Array<{
+			LogicalName: string;
+			DisplayName?: { UserLocalizedLabel?: { Label?: string } };
+			AttributeType?: string;
+			IsValidForCreate?: boolean;
+			IsValidForUpdate?: boolean;
+			IsValidForRead?: boolean;
+		}>;
 
 		if (attributes.length === 0) {
 			return [

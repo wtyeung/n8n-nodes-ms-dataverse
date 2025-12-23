@@ -153,7 +153,7 @@ export const tableDescription: INodeProperties = {
 };
 
 export const fieldSchemaSelector: INodeProperties = {
-	displayName: 'View Table Fields',
+	displayName: 'Field Name or ID',
 	name: 'viewTableFields',
 	type: 'options',
 	typeOptions: {
@@ -165,7 +165,7 @@ export const fieldSchemaSelector: INodeProperties = {
 		},
 	},
 	default: '',
-	description: 'Select to view all available fields and their logical names for the selected table',
+	description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 	placeholder: 'Click to load fields...',
 };
 
