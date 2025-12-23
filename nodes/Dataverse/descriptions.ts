@@ -168,7 +168,7 @@ export const tableDescription: INodeProperties = {
 };
 
 export const fieldSchemaSelector: INodeProperties = {
-	displayName: 'View Table Fields (Reference Only)',
+	displayName: 'View Table Fields (Reference Only) Name or ID',
 	name: 'viewTableFields',
 	type: 'options',
 	typeOptions: {
@@ -180,7 +180,7 @@ export const fieldSchemaSelector: INodeProperties = {
 		},
 	},
 	default: '',
-	description: 'Reference only: Select a table first, then use this to view available fields with their logical names, types, and permissions. This field is not used in the operation.',
+	description: 'Reference only: Select a table first, then use this to view available fields with their logical names, types, and permissions. This field is not used in the operation. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 	placeholder: 'Select a table first...',
 };
 

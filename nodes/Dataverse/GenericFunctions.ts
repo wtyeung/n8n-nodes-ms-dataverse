@@ -59,7 +59,7 @@ export async function dataverseApiRequest(
 		try {
 			const credentials = await this.getCredentials('dataverseOAuth2Api');
 			environmentUrl = credentials.environmentUrl as string;
-		} catch (error) {
+		} catch {
 			// If we can't get credentials and custom auth is not enabled, throw error
 			throw new NodeOperationError(
 				this.getNode(),
@@ -204,7 +204,7 @@ export async function getTableFieldsForDisplay(
 			)) as DataverseApiResponse;
 			
 			if (entityResponse.value && entityResponse.value.length > 0) {
-				logicalName = (entityResponse.value[0] as any).LogicalName;
+				logicalName = (entityResponse.value[0] as { LogicalName: string }).LogicalName;
 			}
 		} catch {
 			// If we can't find it, assume tableValue is already the LogicalName
@@ -224,7 +224,7 @@ export async function getTableFieldsForDisplay(
 					$orderby: 'LogicalName',
 				},
 			)) as DataverseApiResponse;
-		} catch (error) {
+		} catch {
 			// If 404, the table might not exist or we need to use a different identifier
 			return [
 				{
