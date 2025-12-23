@@ -47,6 +47,7 @@ This node supports the following operations on Dataverse records:
 
 - **Dynamic Table Discovery**: Automatically loads available tables from your Dataverse environment using the OData metadata endpoint
 - **Field Schema Viewer**: Browse all available fields with their logical names, types, and permissions (Create/Update/Read)
+- **Image & File Downloads**: Automatically detect and download image and file fields as binary data
 - **OData Support**: Use OData query syntax for filtering, sorting, and selecting fields
 - **FetchXML Support**: Execute complex queries using FetchXML
 - **TDS/SQL Support**: Execute SQL queries for complex data retrieval and analysis
@@ -223,6 +224,67 @@ To discover available fields and their logical names for a table:
    - Permissions: [C] = Create, [U] = Update, [R] = Read
 
 **Note:** This field is for reference only and doesn't affect the operation. Use the logical names you discover here in your field mappings and queries.
+
+### Downloading Images and Files
+
+The **Get** operation can automatically download image and file fields as binary data, making them available for further processing in your workflow.
+
+#### Downloading Images
+
+1. Select **Get** operation
+2. In **Options**, find **Download Images** and choose:
+   - **None**: Don't download images (default)
+   - **Thumbnails Only**: Download base64-encoded thumbnails from the response
+   - **Full Images (Download via API)**: Download full-resolution images via separate API calls
+
+3. **Auto-detect** (recommended): Leave **Image Field Names** empty to automatically detect all image fields using metadata
+4. **Manual specification**: Enter comma-separated field names (e.g., `crb1b_img,entityimage`)
+
+**Example:**
+```
+Operation: Get
+Table: contacts
+Record ID: abc123...
+Options:
+  - Download Images: Full Images (Download via API)
+  - Image Field Names: (leave empty for auto-detect)
+```
+
+Binary data will be available as `$binary.entityimage`, `$binary.crb1b_img`, etc.
+
+#### Downloading Files
+
+1. Select **Get** operation
+2. In **Options**, enable **Download Files**
+3. **Auto-detect** (recommended): Leave **File Field Names** empty to automatically detect all file fields using metadata
+4. **Manual specification**: Enter comma-separated field names (e.g., `crb1b_document,attachment`)
+
+**Example:**
+```
+Operation: Get
+Table: crb1b_academicprograms
+Record ID: def456...
+Options:
+  - Download Files: true
+  - File Field Names: (leave empty for auto-detect)
+```
+
+Binary data will be available as `$binary.document`, `$binary.attachment`, etc.
+
+#### How It Works
+
+- **Metadata-based detection**: The node queries the EntityDefinitions API to identify Virtual attributes that are images (have `_url` and `_timestamp` fields) or files (have `_name` field)
+- **Empty field handling**: Null or empty fields are automatically skipped
+- **Filename preservation**: Original filenames are preserved when available (e.g., from `fieldname_name`)
+- **Binary property naming**: Clean property names are generated (e.g., `crb1b_document` becomes `document`)
+- **Multiple fields**: Download multiple image and file fields from a single record
+
+#### Technical Details
+
+- **Images**: Downloaded via PowerApps Image endpoint (`/Image/download.aspx?Full=true`)
+- **Files**: Downloaded via Web API endpoint (`/[entity]([id])/[field]/$value`)
+- **Format**: Binary data is properly formatted for n8n's binary data system
+- **Error handling**: Download failures are logged but don't stop the workflow
 
 ### Using Custom Authentication
 
