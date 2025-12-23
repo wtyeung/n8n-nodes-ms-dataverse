@@ -16,6 +16,8 @@ import {
 	updateOperationFields,
 	getManyOperationFields,
 	optionsDescription,
+	sqlOperationDescription,
+	sqlQueryFields,
 } from './descriptions';
 import {
 	createRecord,
@@ -24,6 +26,7 @@ import {
 	updateRecord,
 	deleteRecord,
 } from './operations/RecordOperations';
+import { executeSqlQuery } from './operations/SqlOperations';
 import type { Operation } from './types';
 
 export class MicrosoftDataverse implements INodeType {
@@ -57,11 +60,13 @@ export class MicrosoftDataverse implements INodeType {
 		properties: [
 			resourceDescription,
 			operationDescription,
+			sqlOperationDescription,
 			tableDescription,
 			...createOperationFields,
 			...getOperationFields,
 			...updateOperationFields,
 			...getManyOperationFields,
+			...sqlQueryFields,
 			optionsDescription,
 		],
 	};
@@ -80,7 +85,11 @@ export class MicrosoftDataverse implements INodeType {
 
 		for (let i = 0; i < items.length; i++) {
 			try {
-				if (resource === 'record') {
+				if (resource === 'sql') {
+					// Handle SQL query execution
+					const sqlResults = await executeSqlQuery.call(this, i);
+					returnData.push(...sqlResults);
+				} else if (resource === 'record') {
 					const table = this.getNodeParameter('table', i, '', { extractValue: true }) as string;
 					let result: INodeExecutionData | INodeExecutionData[];
 

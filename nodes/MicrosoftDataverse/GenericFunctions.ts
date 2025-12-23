@@ -33,6 +33,7 @@ export async function dataverseApiRequest(
 	}
 
 	// Get environment URL from credentials
+	const credentialType = 'microsoftDataverseOAuth2Api';
 	try {
 		const credentials = await this.getCredentials('microsoftDataverseOAuth2Api');
 		environmentUrl = credentials.environmentUrl as string;
@@ -77,7 +78,7 @@ export async function dataverseApiRequest(
 		} else {
 			return await this.helpers.httpRequestWithAuthentication.call(
 				this,
-				'microsoftDataverseOAuth2Api',
+				credentialType,
 				options,
 			);
 		}

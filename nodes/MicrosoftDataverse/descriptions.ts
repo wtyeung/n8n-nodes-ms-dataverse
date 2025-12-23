@@ -10,6 +10,10 @@ export const resourceDescription: INodeProperties = {
 			name: 'Record',
 			value: 'record',
 		},
+		{
+			name: 'SQL Query',
+			value: 'sql',
+		},
 	],
 	default: 'record',
 };
@@ -421,5 +425,48 @@ export const getManyOperationFields: INodeProperties[] = [
     <attribute name="emailaddress1" />
   </entity>
 </fetch>`,
+	},
+];
+
+// SQL Query Operation
+export const sqlOperationDescription: INodeProperties = {
+	displayName: 'Operation',
+	name: 'operation',
+	type: 'options',
+	noDataExpression: true,
+	displayOptions: {
+		show: {
+			resource: ['sql'],
+		},
+	},
+	options: [
+		{
+			name: 'Execute Query',
+			value: 'executeQuery',
+			description: 'Execute a SQL query via TDS',
+			action: 'Execute a SQL query',
+		},
+	],
+	default: 'executeQuery',
+};
+
+export const sqlQueryFields: INodeProperties[] = [
+	{
+		displayName: 'SQL Query',
+		name: 'sqlQuery',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['sql'],
+				operation: ['executeQuery'],
+			},
+		},
+		typeOptions: {
+			rows: 10,
+		},
+		default: '',
+		required: true,
+		description: 'SQL query to execute against Dataverse',
+		placeholder: 'SELECT TOP 10 name, emailaddress1 FROM account',
 	},
 ];
