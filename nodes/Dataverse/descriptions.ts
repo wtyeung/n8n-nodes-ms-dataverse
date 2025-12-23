@@ -152,23 +152,25 @@ export const tableDescription: INodeProperties = {
 	],
 };
 
-export const fieldSchemaNotice: INodeProperties = {
-	displayName: 'To view all available fields and their logical names for the selected table, visit: {{$credentials.environmentUrl}}/api/data/v9.2/EntityDefinitions(LogicalName=\'{{$parameter.table.value}}\')/Attributes?$select=LogicalName,DisplayName,AttributeType',
-	name: 'fieldSchemaNotice',
-	type: 'notice',
-	default: '',
+export const fieldSchemaSelector: INodeProperties = {
+	displayName: 'View Table Fields',
+	name: 'viewTableFields',
+	type: 'options',
+	typeOptions: {
+		loadOptionsMethod: 'getTableFieldsForDisplay',
+	},
 	displayOptions: {
 		show: {
 			resource: ['record', 'sql'],
 		},
 	},
-	typeOptions: {
-		theme: 'info',
-	},
+	default: '',
+	description: 'Select to view all available fields and their logical names for the selected table',
+	placeholder: 'Click to load fields...',
 };
 
 export const createOperationFields: INodeProperties[] = [
-	fieldSchemaNotice,
+	fieldSchemaSelector,
 	{
 		displayName: 'Fields',
 		name: 'fields',
@@ -212,7 +214,7 @@ export const createOperationFields: INodeProperties[] = [
 
 export const getOperationFields: INodeProperties[] = [
 	{
-		...fieldSchemaNotice,
+		...fieldSchemaSelector,
 		displayOptions: {
 			show: {
 				resource: ['record'],
@@ -319,7 +321,7 @@ export const getOperationFields: INodeProperties[] = [
 
 export const updateOperationFields: INodeProperties[] = [
 	{
-		...fieldSchemaNotice,
+		...fieldSchemaSelector,
 		displayOptions: {
 			show: {
 				resource: ['record'],
@@ -370,7 +372,7 @@ export const updateOperationFields: INodeProperties[] = [
 
 export const getManyOperationFields: INodeProperties[] = [
 	{
-		...fieldSchemaNotice,
+		...fieldSchemaSelector,
 		displayOptions: {
 			show: {
 				resource: ['record'],
@@ -500,7 +502,7 @@ export const sqlOperationDescription: INodeProperties = {
 
 export const sqlQueryFields: INodeProperties[] = [
 	{
-		...fieldSchemaNotice,
+		...fieldSchemaSelector,
 		displayOptions: {
 			show: {
 				resource: ['sql'],

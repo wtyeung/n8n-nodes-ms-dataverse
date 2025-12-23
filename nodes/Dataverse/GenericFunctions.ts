@@ -142,6 +142,80 @@ export async function searchTables(
 }
 
 /**
+ * Get table fields for display in dropdown
+ */
+export async function getTableFieldsForDisplay(
+	this: ILoadOptionsFunctions,
+): Promise<INodePropertyOptions[]> {
+	const returnData: INodePropertyOptions[] = [];
+
+	try {
+		const table = this.getNodeParameter('table', 0) as { mode: string; value: string };
+		const tableName = table?.value;
+
+		if (!tableName) {
+			return [
+				{
+					name: 'Please select a table first',
+					value: '',
+				},
+			];
+		}
+
+		const response = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			`/EntityDefinitions(LogicalName='${tableName}')/Attributes`,
+			undefined,
+			{
+				$select: 'LogicalName,DisplayName,AttributeType,IsValidForCreate,IsValidForUpdate,IsValidForRead',
+				$filter: 'IsValidForRead eq true',
+				$orderby: 'LogicalName',
+			},
+		)) as DataverseApiResponse;
+
+		const attributes = (response.value || []) as any[];
+
+		if (attributes.length === 0) {
+			return [
+				{
+					name: 'No fields found for this table',
+					value: '',
+				},
+			];
+		}
+
+		for (const attr of attributes) {
+			const displayName = attr.DisplayName?.UserLocalizedLabel?.Label || attr.LogicalName;
+			const logicalName = attr.LogicalName;
+			const type = attr.AttributeType || 'Unknown';
+			const flags = [];
+
+			if (attr.IsValidForCreate) flags.push('C');
+			if (attr.IsValidForUpdate) flags.push('U');
+			if (attr.IsValidForRead) flags.push('R');
+
+			const flagStr = flags.length > 0 ? ` [${flags.join('')}]` : '';
+			const name = `${displayName} (${logicalName}) - ${type}${flagStr}`;
+
+			returnData.push({
+				name,
+				value: logicalName,
+			});
+		}
+
+		return returnData;
+	} catch (error) {
+		return [
+			{
+				name: `Error loading fields: ${error.message}`,
+				value: '',
+			},
+		];
+	}
+}
+
+/**
  * Build record identifier for API calls (ID or alternate keys)
  */
 export function buildRecordIdentifier(
