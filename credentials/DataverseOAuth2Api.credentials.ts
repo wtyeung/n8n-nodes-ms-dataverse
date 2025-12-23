@@ -12,7 +12,7 @@ export class DataverseOAuth2Api implements ICredentialType {
 
 	displayName = 'Dataverse OAuth2 API';
 
-	icon = 'file:dataverse.png' as const;
+	icon = 'file:dataverse.svg' as const;
 
 	documentationUrl = 'https://docs.microsoft.com/en-us/power-apps/developer/data-platform/authenticate-oauth';
 

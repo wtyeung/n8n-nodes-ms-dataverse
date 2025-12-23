@@ -33,7 +33,7 @@ export class Dataverse implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Dataverse',
 		name: 'dataverse',
-		icon: 'file:dataverse.png',
+		icon: 'file:dataverse.svg',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
