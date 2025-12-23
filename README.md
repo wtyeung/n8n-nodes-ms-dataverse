@@ -46,12 +46,13 @@ This node supports the following operations on Dataverse records:
 ### Features
 
 - **Dynamic Table Discovery**: Automatically loads available tables from your Dataverse environment using the OData metadata endpoint
+- **Field Schema Viewer**: Browse all available fields with their logical names, types, and permissions (Create/Update/Read)
 - **OData Support**: Use OData query syntax for filtering, sorting, and selecting fields
 - **FetchXML Support**: Execute complex queries using FetchXML
 - **TDS/SQL Support**: Execute SQL queries for complex data retrieval and analysis
 - **Alternate Keys**: Retrieve records using alternate keys instead of GUIDs
 - **Field Selection**: Choose specific fields to return in queries
-- **Custom Token Support**: Use access tokens from webhooks or other nodes
+- **Custom Authentication**: Use custom environment URL and access token for environments without OAuth2 setup
 
 ## Credentials
 
@@ -88,19 +89,26 @@ This node uses Microsoft OAuth2 authentication to connect to Dataverse.
 5. Click **Connect my account** and authorize the application
 6. Test the connection
 
-#### Option 2: Custom Access Token (From webhook or another node)
+#### Option 2: Custom Authentication (For test/sandbox environments)
 
-1. Configure OAuth2 credentials (still needed for environment URL)
-2. In the node, scroll to **Options** section at the bottom
-3. Click **Add Option** and enable **Use Custom Authentication**
-4. In the **Access Token** field, map the token from:
-   - Webhook header: `={{$json.headers.authorization.replace("Bearer ", "")}}`
-   - Previous node: `={{$node["PreviousNode"].json["access_token"]}}`
-   - Or any expression that provides the token
+Use this option when you have an access token but don't have OAuth2 configured in the target environment (e.g., test/sandbox environments).
 
-**Note:** Access tokens typically expire after a certain period. If you need automatic token refresh, use the OAuth2 method instead.
+1. In the node, scroll to **Options** section at the bottom
+2. Click **Add Option** and enable **Use Custom Authentication**
+3. Enter your **Environment URL** (e.g., `https://yourorg.crm.dynamics.com`)
+4. In the **Access Token** field, provide the token:
+   - From webhook header: `={{$json.headers.authorization.replace("Bearer ", "")}}`
+   - From previous node: `={{$node["PreviousNode"].json["access_token"]}}`
+   - Or paste a token directly (for testing)
 
-**Example Use Case:** Receive a webhook with an Authorization header, extract the token, and use it to interact with Dataverse without storing the token in credentials.
+**Note:** 
+- Access tokens typically expire after 1 hour. For production use with automatic token refresh, use OAuth2 method instead.
+- No OAuth2 credentials are required when using custom authentication.
+
+**Example Use Case:** 
+- Copy an access token from a production environment (with OAuth2 configured)
+- Use it to test against a sandbox environment (without OAuth2 setup)
+- Receive a webhook from Power Automate with an Authorization header and use that token
 
 ## Compatibility
 
@@ -200,17 +208,25 @@ WHERE a.statecode = 0
 
 **Note:** TDS endpoint is read-only. INSERT, UPDATE, and DELETE operations are not supported.
 
-### Using Custom Access Tokens
+### Viewing Table Field Schemas
 
-If you receive an access token from a webhook or another node, you can use it without storing credentials:
+To discover available fields and their logical names for a table:
 
-1. In the node, expand the **Options** section
-2. Enable **Use Custom Authentication**
-3. Provide the access token using an expression:
-   - From webhook: `={{$json.headers.authorization.replace("Bearer ", "")}}`
-   - From previous node: `={{$node["OAuth2Node"].json["access_token"]}}`
+1. Select any operation (Create, Get, Update, Get Many, or SQL Query)
+2. Choose a table from the dropdown
+3. Look for the **View Table Fields (Reference Only)** dropdown
+4. Click to load and browse all available fields
+5. Each field shows:
+   - Display Name (e.g., "Account Name")
+   - Logical Name (e.g., "name") - use this in your queries
+   - Field Type (e.g., "String", "Lookup", "DateTime")
+   - Permissions: [C] = Create, [U] = Update, [R] = Read
 
-**Use Case Example:** A Power Automate flow sends a webhook to n8n with an Authorization header. n8n extracts the token and uses it to query Dataverse without requiring separate OAuth2 setup.
+**Note:** This field is for reference only and doesn't affect the operation. Use the logical names you discover here in your field mappings and queries.
+
+### Using Custom Authentication
+
+See the [Custom Authentication section](#option-2-custom-authentication-for-testsandbox-environments) under Credentials for detailed instructions on using custom environment URLs and access tokens.
 
 ## Resources
 
