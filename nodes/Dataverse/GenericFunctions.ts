@@ -111,13 +111,16 @@ export async function searchTables(
 		const entities = (response.value || []) as unknown as DataverseEntity[];
 
 		for (const entity of entities) {
-			const name = entity.DisplayName?.UserLocalizedLabel?.Label || entity.LogicalName;
+			const displayName = entity.DisplayName?.UserLocalizedLabel?.Label || entity.LogicalName;
+			const logicalName = entity.LogicalName;
 			const value = entity.EntitySetName || entity.LogicalName;
+			const name = `${displayName} (${logicalName})`;
 
 			if (filter) {
 				if (
 					name.toLowerCase().includes(filter.toLowerCase()) ||
-					value.toLowerCase().includes(filter.toLowerCase())
+					value.toLowerCase().includes(filter.toLowerCase()) ||
+					logicalName.toLowerCase().includes(filter.toLowerCase())
 				) {
 					returnData.push({ name, value });
 				}

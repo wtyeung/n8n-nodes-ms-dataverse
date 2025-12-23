@@ -101,10 +101,11 @@ export const tableDescription: INodeProperties = {
 	name: 'table',
 	type: 'resourceLocator',
 	default: { mode: 'list', value: '' },
-	required: true,
+	required: false,
+	description: 'Optional: Select a table to view its field schema below',
 	displayOptions: {
 		show: {
-			resource: ['record'],
+			resource: ['record', 'sql'],
 		},
 	},
 	modes: [
@@ -152,7 +153,34 @@ export const tableDescription: INodeProperties = {
 	],
 };
 
+export const fieldSchemaNotice: INodeProperties = {
+	displayName: '',
+	name: 'fieldSchemaNotice',
+	type: 'notice',
+	default: '',
+	displayOptions: {
+		show: {
+			resource: ['record', 'sql'],
+		},
+	},
+	typeOptions: {
+		theme: 'info',
+	},
+	description: `💡 **Need field names?** To view all available fields and their logical names for the selected table:
+	
+1. Open your browser's developer console (F12)
+2. Run this in the console:
+   \`\`\`javascript
+   fetch('{{$credentials.environmentUrl}}/api/data/v9.2/EntityDefinitions(LogicalName=\\'{{$parameter.table.value}}\\')/ Attributes?$select=LogicalName,DisplayName,AttributeType', {
+     headers: { 'Authorization': 'Bearer {{$credentials.oauthTokenData.access_token}}' }
+   }).then(r=>r.json()).then(d=>console.table(d.value.map(f=>({Display:f.DisplayName?.UserLocalizedLabel?.Label,Logical:f.LogicalName,Type:f.AttributeType}))))
+   \`\`\`
+
+Or visit: {{$credentials.environmentUrl}}/api/data/v9.2/EntityDefinitions(LogicalName='{{$parameter.table.value}}')/Attributes?$select=LogicalName,DisplayName,AttributeType`,
+};
+
 export const createOperationFields: INodeProperties[] = [
+	fieldSchemaNotice,
 	{
 		displayName: 'Fields',
 		name: 'fields',
@@ -195,6 +223,15 @@ export const createOperationFields: INodeProperties[] = [
 ];
 
 export const getOperationFields: INodeProperties[] = [
+	{
+		...fieldSchemaNotice,
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['get'],
+			},
+		},
+	},
 	{
 		displayName: 'Record ID Type',
 		name: 'recordIdType',
@@ -294,6 +331,15 @@ export const getOperationFields: INodeProperties[] = [
 
 export const updateOperationFields: INodeProperties[] = [
 	{
+		...fieldSchemaNotice,
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['update'],
+			},
+		},
+	},
+	{
 		displayName: 'Update Fields',
 		name: 'updateFields',
 		type: 'fixedCollection',
@@ -335,6 +381,15 @@ export const updateOperationFields: INodeProperties[] = [
 ];
 
 export const getManyOperationFields: INodeProperties[] = [
+	{
+		...fieldSchemaNotice,
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['getMany'],
+			},
+		},
+	},
 	{
 		displayName: 'Query Type',
 		name: 'queryType',
@@ -456,6 +511,15 @@ export const sqlOperationDescription: INodeProperties = {
 };
 
 export const sqlQueryFields: INodeProperties[] = [
+	{
+		...fieldSchemaNotice,
+		displayOptions: {
+			show: {
+				resource: ['sql'],
+				operation: ['executeQuery'],
+			},
+		},
+	},
 	{
 		displayName: 'SQL Query',
 		name: 'sqlQuery',
