@@ -424,7 +424,7 @@ export async function getTableFieldsForDisplay(
 						value: '',
 					},
 					{
-						name: 'Tip: If using {{ $json.token }}, ensure token node is directly before this node',
+						name: 'Workaround: Execute the node once, then close and reopen to refresh the list',
 						value: '',
 					},
 					{

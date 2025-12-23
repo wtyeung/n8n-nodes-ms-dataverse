@@ -105,7 +105,7 @@ export const optionsDescription: INodeProperties = {
 			},
 			default: '',
 			required: true,
-			description: 'Provide an access token. Note: For field name dropdown to work, use {{ $json.token }} from the previous node. Named node references like {{ $(\'token\').item.json.token }} work for execution but not for dropdowns.',
+			description: 'Provide an access token (e.g., from webhook headers or previous nodes)',
 			placeholder: '={{ $json.token }}',
 		},
 		{
