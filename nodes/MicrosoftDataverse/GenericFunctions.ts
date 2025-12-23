@@ -37,7 +37,7 @@ export async function dataverseApiRequest(
 	try {
 		const credentials = await this.getCredentials('microsoftDataverseOAuth2Api');
 		environmentUrl = credentials.environmentUrl as string;
-	} catch (error) {
+	} catch {
 		if (!useCustomAuth) {
 			throw new NodeOperationError(
 				this.getNode(),

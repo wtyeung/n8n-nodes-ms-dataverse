@@ -1,6 +1,13 @@
-import type { IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
+import type { IExecuteFunctions, INodeExecutionData, IDataObject } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 import * as sql from 'mssql';
+
+interface OAuth2Credentials extends IDataObject {
+	environmentUrl: string;
+	oauthTokenData?: {
+		access_token: string;
+	};
+}
 
 export async function executeSqlQuery(
 	this: IExecuteFunctions,
@@ -9,9 +16,9 @@ export async function executeSqlQuery(
 	const sqlQuery = this.getNodeParameter('sqlQuery', itemIndex) as string;
 
 	// Get credentials and access token
-	const credentials = await this.getCredentials('microsoftDataverseOAuth2Api') as any;
-	const environmentUrl = credentials.environmentUrl as string;
-	const accessToken = credentials.oauthTokenData?.access_token as string;
+	const credentials = await this.getCredentials('microsoftDataverseOAuth2Api') as OAuth2Credentials;
+	const environmentUrl = credentials.environmentUrl;
+	const accessToken = credentials.oauthTokenData?.access_token;
 
 	if (!accessToken) {
 		throw new NodeOperationError(
@@ -58,7 +65,7 @@ export async function executeSqlQuery(
 		const result = await pool.request().query(sqlQuery);
 
 		// Convert results to n8n format
-		const returnData: INodeExecutionData[] = result.recordset.map((row: any) => ({
+		const returnData: INodeExecutionData[] = result.recordset.map((row: IDataObject) => ({
 			json: row,
 			pairedItem: { item: itemIndex },
 		}));
