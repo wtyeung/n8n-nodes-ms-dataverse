@@ -153,7 +153,7 @@ export const tableDescription: INodeProperties = {
 };
 
 export const fieldSchemaNotice: INodeProperties = {
-	displayName: '',
+	displayName: 'To view all available fields and their logical names for the selected table, visit: {{$credentials.environmentUrl}}/api/data/v9.2/EntityDefinitions(LogicalName=\'{{$parameter.table.value}}\')/Attributes?$select=LogicalName,DisplayName,AttributeType',
 	name: 'fieldSchemaNotice',
 	type: 'notice',
 	default: '',
@@ -165,7 +165,6 @@ export const fieldSchemaNotice: INodeProperties = {
 	typeOptions: {
 		theme: 'info',
 	},
-	description: 'To view all available fields and their logical names for the selected table, visit: {{$credentials.environmentUrl}}/api/data/v9.2/EntityDefinitions(LogicalName=\'{{$parameter.table.value}}\')/Attributes?$select=LogicalName,DisplayName,AttributeType',
 };
 
 export const createOperationFields: INodeProperties[] = [

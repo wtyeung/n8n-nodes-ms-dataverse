@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-ms-dataverse",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "n8n community node for Microsoft Dataverse (Power Platform)",
   "license": "MIT",
   "homepage": "https://github.com/wtyeung/n8n-nodes-ms-dataverse#readme",
