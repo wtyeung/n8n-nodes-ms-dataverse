@@ -45,6 +45,7 @@ export async function executeSqlQuery(
 	// TDS endpoint configuration for Dataverse
 	const config: sql.config = {
 		server: domain,
+		port: 5558,
 		authentication: {
 			type: 'azure-active-directory-access-token',
 			options: {
@@ -55,7 +56,9 @@ export async function executeSqlQuery(
 		options: {
 			encrypt: true,
 			trustServerCertificate: false,
-			port: 5558,
+			enableArithAbort: true,
+			connectTimeout: 30000,
+			requestTimeout: 30000,
 		},
 	};
 
@@ -76,9 +79,23 @@ export async function executeSqlQuery(
 
 		return returnData;
 	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		
+		// Provide helpful error messages
+		if (errorMessage.includes('Failed to connect') || errorMessage.includes('timeout')) {
+			throw new NodeOperationError(
+				this.getNode(),
+				`Failed to connect to Dataverse TDS endpoint at ${domain}:5558. Please verify:\n` +
+				`1. TDS endpoint is enabled in your Dataverse environment\n` +
+				`2. Your IP address is allowed in Dataverse firewall rules\n` +
+				`3. The OAuth2 token has the correct scope (${environmentUrl}/.default)\n` +
+				`Error: ${errorMessage}`,
+			);
+		}
+		
 		throw new NodeOperationError(
 			this.getNode(),
-			`SQL query execution failed: ${error.message}`,
+			`SQL query execution failed: ${errorMessage}`,
 		);
 	} finally {
 		// Close connection pool
