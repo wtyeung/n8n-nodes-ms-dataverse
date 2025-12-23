@@ -24,35 +24,56 @@ export async function dataverseApiRequest(
 	// Check if using custom authentication from options
 	let useCustomAuth = false;
 	let accessTokenOverride = '';
+	let customEnvironmentUrl = '';
 	let environmentUrl = '';
 
-	if (itemIndex !== undefined && this.getNodeParameter) {
-		const options = this.getNodeParameter('options', itemIndex, {}) as IDataObject;
+	// For ILoadOptionsFunctions, use index 0, for IExecuteFunctions use the provided itemIndex
+	const paramIndex = itemIndex !== undefined ? itemIndex : 0;
+	
+	try {
+		const options = this.getNodeParameter('options', paramIndex, {}) as IDataObject;
 		useCustomAuth = options.useCustomAuth as boolean || false;
 		accessTokenOverride = options.accessToken as string || '';
+		customEnvironmentUrl = options.customEnvironmentUrl as string || '';
+	} catch {
+		// Options parameter might not exist yet, continue with default values
 	}
 
-	// Get environment URL from credentials
-	const credentialType = 'dataverseOAuth2Api';
-	try {
-		const credentials = await this.getCredentials('dataverseOAuth2Api');
-		environmentUrl = credentials.environmentUrl as string;
-	} catch {
-		if (!useCustomAuth) {
+	// Get environment URL - use custom if provided, otherwise from credentials
+	if (useCustomAuth) {
+		if (!customEnvironmentUrl) {
 			throw new NodeOperationError(
 				this.getNode(),
-				'OAuth2 credentials are required when not using custom authentication.',
+				'Environment URL is required when using custom authentication. Please add it in the Options.',
 			);
 		}
-		throw new NodeOperationError(
-			this.getNode(),
-			'Environment URL is required. Please configure OAuth2 credentials to provide the environment URL.',
-		);
+		if (!accessTokenOverride) {
+			throw new NodeOperationError(
+				this.getNode(),
+				'Access Token is required when using custom authentication. Please add it in the Options.',
+			);
+		}
+		environmentUrl = customEnvironmentUrl;
+	} else {
+		// Try to get credentials, but don't fail if custom auth might be used
+		try {
+			const credentials = await this.getCredentials('dataverseOAuth2Api');
+			environmentUrl = credentials.environmentUrl as string;
+		} catch (error) {
+			// If we can't get credentials and custom auth is not enabled, throw error
+			throw new NodeOperationError(
+				this.getNode(),
+				'OAuth2 credentials are required. Please configure Dataverse OAuth2 API credentials.',
+			);
+		}
 	}
 
+	// Remove trailing slash from environment URL if present
+	const cleanEnvironmentUrl = environmentUrl.replace(/\/$/, '');
+	
 	const options: IHttpRequestOptions = {
 		method,
-		url: `${environmentUrl}/api/data/v9.2${endpoint}`,
+		url: `${cleanEnvironmentUrl}/api/data/v9.2${endpoint}`,
 		headers: {
 			Accept: 'application/json',
 			'Content-Type': 'application/json',
@@ -78,12 +99,17 @@ export async function dataverseApiRequest(
 		} else {
 			return await this.helpers.httpRequestWithAuthentication.call(
 				this,
-				credentialType,
+				'dataverseOAuth2Api',
 				options,
 			);
 		}
 	} catch (error) {
-		throw new NodeOperationError(this.getNode(), error);
+		// Add more context to the error
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		throw new NodeOperationError(
+			this.getNode(),
+			`Dataverse API request failed: ${errorMessage}. URL: ${options.url}`,
+		);
 	}
 }
 
@@ -113,6 +139,7 @@ export async function searchTables(
 		for (const entity of entities) {
 			const displayName = entity.DisplayName?.UserLocalizedLabel?.Label || entity.LogicalName;
 			const logicalName = entity.LogicalName;
+			// Use EntitySetName for record operations (plural form needed for API)
 			const value = entity.EntitySetName || entity.LogicalName;
 			const name = `${displayName} (${logicalName})`;
 
@@ -151,9 +178,9 @@ export async function getTableFieldsForDisplay(
 
 	try {
 		const table = this.getNodeParameter('table', 0) as { mode: string; value: string };
-		const tableName = table?.value;
+		const tableValue = table?.value;
 
-		if (!tableName) {
+		if (!tableValue) {
 			return [
 				{
 					name: 'Please select a table first',
@@ -162,17 +189,54 @@ export async function getTableFieldsForDisplay(
 			];
 		}
 
-		const response = (await dataverseApiRequest.call(
-			this,
-			'GET',
-			`/EntityDefinitions(LogicalName='${tableName}')/Attributes`,
-			undefined,
-			{
-				$select: 'LogicalName,DisplayName,AttributeType,IsValidForCreate,IsValidForUpdate,IsValidForRead',
-				$filter: 'IsValidForRead eq true',
-				$orderby: 'LogicalName',
-			},
-		)) as DataverseApiResponse;
+		// First, get the entity definition to find the LogicalName from EntitySetName
+		let logicalName = tableValue;
+		try {
+			const entityResponse = (await dataverseApiRequest.call(
+				this,
+				'GET',
+				'/EntityDefinitions',
+				undefined,
+				{
+					$select: 'LogicalName,EntitySetName',
+					$filter: `EntitySetName eq '${tableValue}'`,
+				},
+			)) as DataverseApiResponse;
+			
+			if (entityResponse.value && entityResponse.value.length > 0) {
+				logicalName = (entityResponse.value[0] as any).LogicalName;
+			}
+		} catch {
+			// If we can't find it, assume tableValue is already the LogicalName
+		}
+
+		// Try to fetch attributes
+		let response: DataverseApiResponse;
+		try {
+			response = (await dataverseApiRequest.call(
+				this,
+				'GET',
+				`/EntityDefinitions(LogicalName='${logicalName}')/Attributes`,
+				undefined,
+				{
+					$select: 'LogicalName,DisplayName,AttributeType,IsValidForCreate,IsValidForUpdate,IsValidForRead',
+					$filter: 'IsValidForRead eq true',
+					$orderby: 'LogicalName',
+				},
+			)) as DataverseApiResponse;
+		} catch (error) {
+			// If 404, the table might not exist or we need to use a different identifier
+			return [
+				{
+					name: `⚠️ Could not load fields for table: ${tableValue}`,
+					value: '',
+				},
+				{
+					name: 'The table may not exist or you may not have permission',
+					value: '',
+				},
+			];
+		}
 
 		const attributes = (response.value || []) as Array<{
 			LogicalName: string;
@@ -213,9 +277,15 @@ export async function getTableFieldsForDisplay(
 
 		return returnData;
 	} catch (error) {
+		// Return a more helpful error message
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		return [
 			{
-				name: `Error loading fields: ${error.message}`,
+				name: `⚠️ Error: ${errorMessage}`,
+				value: '',
+			},
+			{
+				name: 'Please check your credentials and table selection',
 				value: '',
 			},
 		];

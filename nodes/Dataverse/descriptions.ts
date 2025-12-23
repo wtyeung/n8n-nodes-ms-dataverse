@@ -75,7 +75,21 @@ export const optionsDescription: INodeProperties = {
 			name: 'useCustomAuth',
 			type: 'boolean',
 			default: false,
-			description: 'Whether to provide a custom access token instead of using OAuth2 credentials',
+			description: 'Whether to provide a custom access token and environment URL instead of using OAuth2 credentials',
+		},
+		{
+			displayName: 'Environment URL',
+			name: 'customEnvironmentUrl',
+			type: 'string',
+			displayOptions: {
+				show: {
+					useCustomAuth: [true],
+				},
+			},
+			default: '',
+			required: true,
+			description: 'The URL of your Dataverse environment',
+			placeholder: 'https://yourorg.crm.dynamics.com',
 		},
 		{
 			displayName: 'Access Token',
@@ -90,6 +104,7 @@ export const optionsDescription: INodeProperties = {
 				},
 			},
 			default: '',
+			required: true,
 			description: 'Provide an access token (e.g., from webhook headers or previous nodes)',
 			placeholder: '={{$json.headers.authorization.replace("Bearer ", "")}}',
 		},
@@ -153,7 +168,7 @@ export const tableDescription: INodeProperties = {
 };
 
 export const fieldSchemaSelector: INodeProperties = {
-	displayName: 'Field Name or ID',
+	displayName: 'View Table Fields (Reference Only)',
 	name: 'viewTableFields',
 	type: 'options',
 	typeOptions: {
@@ -165,12 +180,11 @@ export const fieldSchemaSelector: INodeProperties = {
 		},
 	},
 	default: '',
-	description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
-	placeholder: 'Click to load fields...',
+	description: 'Reference only: Select a table first, then use this to view available fields with their logical names, types, and permissions. This field is not used in the operation.',
+	placeholder: 'Select a table first...',
 };
 
 export const createOperationFields: INodeProperties[] = [
-	fieldSchemaSelector,
 	{
 		displayName: 'Fields',
 		name: 'fields',
@@ -213,15 +227,6 @@ export const createOperationFields: INodeProperties[] = [
 ];
 
 export const getOperationFields: INodeProperties[] = [
-	{
-		...fieldSchemaSelector,
-		displayOptions: {
-			show: {
-				resource: ['record'],
-				operation: ['get'],
-			},
-		},
-	},
 	{
 		displayName: 'Record ID Type',
 		name: 'recordIdType',
@@ -321,15 +326,6 @@ export const getOperationFields: INodeProperties[] = [
 
 export const updateOperationFields: INodeProperties[] = [
 	{
-		...fieldSchemaSelector,
-		displayOptions: {
-			show: {
-				resource: ['record'],
-				operation: ['update'],
-			},
-		},
-	},
-	{
 		displayName: 'Update Fields',
 		name: 'updateFields',
 		type: 'fixedCollection',
@@ -371,15 +367,6 @@ export const updateOperationFields: INodeProperties[] = [
 ];
 
 export const getManyOperationFields: INodeProperties[] = [
-	{
-		...fieldSchemaSelector,
-		displayOptions: {
-			show: {
-				resource: ['record'],
-				operation: ['getMany'],
-			},
-		},
-	},
 	{
 		displayName: 'Query Type',
 		name: 'queryType',
@@ -501,15 +488,6 @@ export const sqlOperationDescription: INodeProperties = {
 };
 
 export const sqlQueryFields: INodeProperties[] = [
-	{
-		...fieldSchemaSelector,
-		displayOptions: {
-			show: {
-				resource: ['sql'],
-				operation: ['executeQuery'],
-			},
-		},
-	},
 	{
 		displayName: 'SQL Query',
 		name: 'sqlQuery',
