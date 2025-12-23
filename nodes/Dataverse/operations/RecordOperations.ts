@@ -197,11 +197,9 @@ export async function getRecord(
 					fileFieldsToDownload.push(fieldName);
 				}
 			}
-			console.log(`Manual file fields specified: ${fileFieldNames}, found: ${fileFieldsToDownload.join(',')}`);
 		} else {
 			// Auto-detect using entity metadata
 			const metadata = await getImageAndFileFields.call(this, table, itemIndex);
-			console.log(`Metadata file fields: ${metadata.fileFields.join(',')}`);
 			
 			// Use file fields from metadata that exist in the record and have data
 			for (const fieldName of metadata.fileFields) {
@@ -211,7 +209,6 @@ export async function getRecord(
 					fileFieldsToDownload.push(fieldName);
 				}
 			}
-			console.log(`File fields to download: ${fileFieldsToDownload.join(',')}`);
 		}
 
 		// Download each file field
@@ -233,7 +230,6 @@ export async function getRecord(
 				// Files use the Web API /$value endpoint
 				// Format: /api/data/v9.2/[entity]([id])/[field]/$value
 				const fileEndpoint = `/${table}(${recordIdentifier})/${fieldName}/$value`;
-				console.log(`Downloading file from: ${fileEndpoint}`);
 				
 				fileBuffer = await dataverseApiBinaryRequest.call(
 					this,
@@ -245,7 +241,6 @@ export async function getRecord(
 				// Try to get filename from record
 				const fileNameField = `${fieldName}_name`;
 				fileName = (record[fileNameField] as string) || `${fileRecordId}_${fieldName}`;
-				console.log(`Downloaded file: ${fileName}, size: ${fileBuffer.length} bytes`);
 				
 				const binary = await this.helpers.prepareBinaryData(
 					fileBuffer,

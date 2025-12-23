@@ -325,25 +325,6 @@ export async function getImageAndFileFields(
 			AttributeType?: string;
 		}>;
 
-		console.log(`Total attributes fetched: ${attributes.length}`);
-		
-		// Log a sample of attribute types to see what we're getting
-		const sampleTypes = new Set<string>();
-		for (const attr of attributes) {
-			if (attr.AttributeType) {
-				sampleTypes.add(attr.AttributeType);
-			}
-		}
-		console.log(`Sample AttributeTypes found: ${Array.from(sampleTypes).slice(0, 10).join(', ')}`);
-		
-		// Log fields that might be documents or images
-		for (const attr of attributes) {
-			const fieldName = attr.LogicalName;
-			if (fieldName && (fieldName.includes('document') || fieldName.includes('img') || fieldName.includes('image') || fieldName.includes('file'))) {
-				console.log(`Potential file/image field: ${fieldName} = ${attr.AttributeType}`);
-			}
-		}
-
 		// Build a map of field names for quick lookup
 		const fieldNameSet = new Set(attributes.map(a => a.LogicalName));
 		
@@ -359,18 +340,14 @@ export async function getImageAndFileFields(
 				const hasImgTimestamp = fieldNameSet.has(`${fieldName}_timestamp`);
 				
 				if (hasImgUrl && hasImgTimestamp) {
-					console.log(`Found IMAGE field: ${fieldName} (Virtual with _url and _timestamp)`);
 					imageFields.push(fieldName);
 				}
 				// Check if this is a file/document field (has _name)
 				else if (fieldNameSet.has(`${fieldName}_name`)) {
-					console.log(`Found FILE field: ${fieldName} (Virtual with _name)`);
 					fileFields.push(fieldName);
 				}
 			}
 		}
-		
-		console.log(`Found ${imageFields.length} image fields and ${fileFields.length} file fields`);
 	} catch (error) {
 		// If metadata fetch fails, return empty arrays
 		console.error('Failed to fetch field metadata:', error);
@@ -436,19 +413,38 @@ export async function getTableFieldsForDisplay(
 				},
 			)) as DataverseApiResponse;
 		} catch (error) {
-			// If 404, the table might not exist or we need to use a different identifier
+			// If authentication fails or other error, show helpful message
 			const errorMsg = error instanceof Error ? error.message : String(error);
+			const isAuthError = errorMsg.includes('401') || errorMsg.includes('403') || errorMsg.includes('Unauthorized');
+			
+			if (isAuthError) {
+				return [
+					{
+						name: '⚠️ Authentication failed - field list unavailable',
+						value: '',
+					},
+					{
+						name: 'Tip: If using {{ $json.token }}, ensure token node is directly before this node',
+						value: '',
+					},
+					{
+						name: 'Note: This is reference only - you can still execute the workflow',
+						value: '',
+					},
+				];
+			}
+			
 			return [
 				{
 					name: `⚠️ Could not load fields for table: ${tableValue}`,
 					value: '',
 				},
 				{
-					name: `LogicalName used: ${logicalName}`,
+					name: `Error: ${errorMsg}`,
 					value: '',
 				},
 				{
-					name: `Error: ${errorMsg}`,
+					name: 'Note: This is reference only - you can still execute the workflow',
 					value: '',
 				},
 			];
