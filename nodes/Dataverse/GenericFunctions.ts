@@ -1,11 +1,11 @@
 import type {
-	IExecuteFunctions,
-	ILoadOptionsFunctions,
 	IDataObject,
+	IExecuteFunctions,
 	IHttpRequestMethods,
 	IHttpRequestOptions,
-	INodePropertyOptions,
+	ILoadOptionsFunctions,
 	INodeListSearchResult,
+	INodePropertyOptions,
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 import type { DataverseEntity, DataverseApiResponse } from './types';
@@ -109,6 +109,108 @@ export async function dataverseApiRequest(
 		throw new NodeOperationError(
 			this.getNode(),
 			`Dataverse API request failed: ${errorMessage}. URL: ${options.url}`,
+		);
+	}
+}
+
+/**
+ * Download binary data (like images) from Dataverse
+ */
+export async function dataverseApiBinaryRequest(
+	this: IExecuteFunctions | ILoadOptionsFunctions,
+	method: string,
+	endpoint: string,
+	itemIndex?: number,
+): Promise<Buffer> {
+	// Check if using custom authentication from options
+	let useCustomAuth = false;
+	let accessTokenOverride = '';
+	let customEnvironmentUrl = '';
+	let environmentUrl = '';
+
+	// For ILoadOptionsFunctions, use index 0, for IExecuteFunctions use the provided itemIndex
+	const paramIndex = itemIndex !== undefined ? itemIndex : 0;
+	
+	try {
+		const options = this.getNodeParameter('options', paramIndex, {}) as IDataObject;
+		useCustomAuth = options.useCustomAuth as boolean || false;
+		accessTokenOverride = options.accessToken as string || '';
+		customEnvironmentUrl = options.customEnvironmentUrl as string || '';
+	} catch {
+		// Options parameter might not exist yet, continue with default values
+	}
+
+	// Get environment URL - use custom if provided, otherwise from credentials
+	if (useCustomAuth) {
+		if (!customEnvironmentUrl) {
+			throw new NodeOperationError(
+				this.getNode(),
+				'Environment URL is required when using custom authentication. Please add it in the Options.',
+			);
+		}
+		if (!accessTokenOverride) {
+			throw new NodeOperationError(
+				this.getNode(),
+				'Access Token is required when using custom authentication. Please add it in the Options.',
+			);
+		}
+		environmentUrl = customEnvironmentUrl;
+	} else {
+		// Try to get credentials
+		try {
+			const credentials = await this.getCredentials('dataverseOAuth2Api');
+			environmentUrl = credentials.environmentUrl as string;
+		} catch {
+			throw new NodeOperationError(
+				this.getNode(),
+				'OAuth2 credentials are required. Please configure Dataverse OAuth2 API credentials.',
+			);
+		}
+	}
+
+	// Remove trailing slash from environment URL if present
+	const cleanEnvironmentUrl = environmentUrl.replace(/\/$/, '');
+	
+	// Check if endpoint already includes /api/data/v9.2 or is a different endpoint (like /Image/download.aspx)
+	const fullUrl = endpoint.startsWith('/api/') || endpoint.startsWith('/Image/') 
+		? `${cleanEnvironmentUrl}${endpoint}`
+		: `${cleanEnvironmentUrl}/api/data/v9.2${endpoint}`;
+	
+	// Use axios directly for binary data to avoid any string conversion
+	const axios = require('axios');
+	
+	const axiosConfig: any = {
+		method: method.toLowerCase(),
+		url: fullUrl,
+		headers: {
+			Accept: 'image/jpeg, image/png, image/*',
+		},
+		responseType: 'arraybuffer', // Critical: get response as ArrayBuffer
+	};
+
+	// Add authentication
+	if (useCustomAuth && accessTokenOverride) {
+		axiosConfig.headers.Authorization = `Bearer ${accessTokenOverride}`;
+	} else {
+		// Get OAuth2 token
+		const credentials = await this.getCredentials('dataverseOAuth2Api') as IDataObject;
+		const oauthData = credentials.oauthTokenData as IDataObject;
+		const token = oauthData?.access_token as string;
+		if (token) {
+			axiosConfig.headers.Authorization = `Bearer ${token}`;
+		}
+	}
+
+	try {
+		const response = await axios(axiosConfig);
+		// Convert ArrayBuffer to Buffer
+		return Buffer.from(response.data);
+	} catch (error) {
+		// Add more context to the error
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		throw new NodeOperationError(
+			this.getNode(),
+			`Dataverse binary request failed: ${errorMessage}. URL: ${fullUrl}`,
 		);
 	}
 }

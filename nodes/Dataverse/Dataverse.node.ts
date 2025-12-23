@@ -106,8 +106,7 @@ export class Dataverse implements INodeType {
 						}
 
 						case 'get': {
-							const getResult = await getRecord.call(this, table, i);
-							result = { json: getResult, pairedItem: { item: i } };
+							result = await getRecord.call(this, table, i);
 							break;
 						}
 

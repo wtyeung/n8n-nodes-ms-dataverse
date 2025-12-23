@@ -108,6 +108,48 @@ export const optionsDescription: INodeProperties = {
 			description: 'Provide an access token (e.g., from webhook headers or previous nodes)',
 			placeholder: '={{$json.headers.authorization.replace("Bearer ", "")}}',
 		},
+		{
+			displayName: 'Download Images',
+			name: 'downloadImages',
+			type: 'options',
+			displayOptions: {
+				show: {
+					'/resource': ['record'],
+					'/operation': ['get'],
+				},
+			},
+			options: [
+				{
+					name: 'No',
+					value: 'none',
+				},
+				{
+					name: 'Thumbnails Only (Base64 in Response)',
+					value: 'thumbnails',
+				},
+				{
+					name: 'Full Images (Download via API)',
+					value: 'full',
+				},
+			],
+			default: 'none',
+			description: 'Whether to download image fields. Thumbnails use base64 data from response, full images download via /$value endpoint.',
+		},
+		{
+			displayName: 'Image Field Names',
+			name: 'imageFieldNames',
+			type: 'string',
+			displayOptions: {
+				show: {
+					'/resource': ['record'],
+					'/operation': ['get'],
+					downloadImages: ['thumbnails', 'full'],
+				},
+			},
+			default: '',
+			placeholder: 'e.g., crb1b_img,entityimage',
+			description: 'Comma-separated list of image field names to download. Leave empty to auto-detect fields ending with _img or containing "image".',
+		},
 	],
 };
 
