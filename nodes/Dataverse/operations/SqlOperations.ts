@@ -44,29 +44,23 @@ export async function executeSqlQuery(
 		const credentials = await this.getCredentials('dataverseOAuth2Api') as OAuth2Credentials;
 		environmentUrl = credentials.environmentUrl;
 		
-		// Use n8n's OAuth2 helper to get access token (handles refresh automatically)
-		const oAuth2Options = {
-			tokenType: 'Bearer',
-			keyToIncludeInAccessTokenHeader: 'access_token',
-		};
-		
 		try {
-			// This will automatically refresh the token if needed
-			await this.helpers.requestOAuth2.call(
+			// Make a lightweight API call to trigger token refresh if needed
+			// This uses httpRequestWithAuthentication which handles OAuth2 refresh automatically
+			await this.helpers.httpRequestWithAuthentication.call(
 				this,
 				'dataverseOAuth2Api',
 				{
 					url: `${environmentUrl}/api/data/v9.2/WhoAmI`,
 					method: 'GET',
+					returnFullResponse: false,
 				},
-				oAuth2Options,
 			);
 			
-			// Extract token from the request that was made
-			// The token is already refreshed at this point
+			// Extract token after refresh
 			const refreshedCredentials = await this.getCredentials('dataverseOAuth2Api') as OAuth2Credentials;
 			accessToken = refreshedCredentials.oauthTokenData?.access_token || '';
-		} catch (error) {
+		} catch {
 			throw new NodeOperationError(
 				this.getNode(),
 				'Failed to get OAuth2 access token. Please re-authenticate.',

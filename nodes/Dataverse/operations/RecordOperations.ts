@@ -60,7 +60,7 @@ export async function getRecord(
 
 	// Download images if requested
 	if (downloadImages !== 'none') {
-		let imageFieldsToDownload: string[] = [];
+		const imageFieldsToDownload: string[] = [];
 		
 		// If specific field names provided, use those
 		if (imageFieldNames) {
@@ -178,16 +178,16 @@ export async function getRecord(
 				);
 
 				binaryData[binaryPropertyName] = binary;
-			} catch (error) {
-				// Image field conversion failed, log error but continue
-				console.error(`Failed to download image ${fieldName}:`, error);
+			} catch {
+				// Image field conversion failed, continue with other fields
+				// Error is silently ignored to not break the workflow
 			}
 		}
 	}
 
 	// Download files if requested
 	if (downloadFiles) {
-		let fileFieldsToDownload: string[] = [];
+		const fileFieldsToDownload: string[] = [];
 		
 		// If specific field names provided, use those
 		if (fileFieldNames) {
@@ -214,24 +214,21 @@ export async function getRecord(
 		// Download each file field
 		for (const fieldName of fileFieldsToDownload) {
 			try {
-				let fileBuffer: Buffer;
-				let fileName: string;
-				let mimeType = 'application/octet-stream';
+				const mimeType = 'application/octet-stream';
 				
 				// Get record ID for filename
-				let fileRecordId = '';
-				if (recordIdType === 'id') {
-					fileRecordId = this.getNodeParameter('recordId', itemIndex) as string;
-				} else {
-					const primaryKeyField = Object.keys(record).find(key => key.endsWith('id') && !key.includes('_'));
-					fileRecordId = primaryKeyField ? (record[primaryKeyField] as string) : 'record';
-				}
+				const fileRecordId = recordIdType === 'id' 
+					? this.getNodeParameter('recordId', itemIndex) as string
+					: (() => {
+						const primaryKeyField = Object.keys(record).find(key => key.endsWith('id') && !key.includes('_'));
+						return primaryKeyField ? (record[primaryKeyField] as string) : 'record';
+					})();
 				
 				// Files use the Web API /$value endpoint
 				// Format: /api/data/v9.2/[entity]([id])/[field]/$value
 				const fileEndpoint = `/${table}(${recordIdentifier})/${fieldName}/$value`;
 				
-				fileBuffer = await dataverseApiBinaryRequest.call(
+				const fileBuffer = await dataverseApiBinaryRequest.call(
 					this,
 					'GET',
 					fileEndpoint,
@@ -240,7 +237,7 @@ export async function getRecord(
 				
 				// Try to get filename from record
 				const fileNameField = `${fieldName}_name`;
-				fileName = (record[fileNameField] as string) || `${fileRecordId}_${fieldName}`;
+				const fileName = (record[fileNameField] as string) || `${fileRecordId}_${fieldName}`;
 				
 				const binary = await this.helpers.prepareBinaryData(
 					fileBuffer,
@@ -256,9 +253,9 @@ export async function getRecord(
 				}
 
 				binaryData[binaryPropertyName] = binary;
-			} catch (error) {
-				// File download failed, log error but continue
-				console.error(`Failed to download file ${fieldName}:`, error);
+			} catch {
+				// File download failed, continue with other fields
+				// Error is silently ignored to not break the workflow
 			}
 		}
 	}

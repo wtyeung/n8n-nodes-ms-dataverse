@@ -107,7 +107,7 @@ export async function dataverseApiRequest(
 		// Add more context to the error
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		const errorDetails = error instanceof Error && 'response' in error 
-			? ` Response: ${JSON.stringify((error as any).response?.data || {})}`
+			? ` Response: ${JSON.stringify((error as {response?: {data?: unknown}}).response?.data || {})}`
 			: '';
 		throw new NodeOperationError(
 			this.getNode(),
@@ -180,9 +180,15 @@ export async function dataverseApiBinaryRequest(
 		: `${cleanEnvironmentUrl}/api/data/v9.2${endpoint}`;
 	
 	// Use axios directly for binary data to avoid any string conversion
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
 	const axios = require('axios');
 	
-	const axiosConfig: any = {
+	const axiosConfig: {
+		method: string;
+		url: string;
+		headers: Record<string, string>;
+		responseType: string;
+	} = {
 		method: method.toLowerCase(),
 		url: fullUrl,
 		headers: {
@@ -348,9 +354,9 @@ export async function getImageAndFileFields(
 				}
 			}
 		}
-	} catch (error) {
+	} catch {
 		// If metadata fetch fails, return empty arrays
-		console.error('Failed to fetch field metadata:', error);
+		// Error is silently ignored to allow fallback to pattern matching
 	}
 
 	return { imageFields, fileFields };
