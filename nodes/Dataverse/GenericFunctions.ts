@@ -106,9 +106,12 @@ export async function dataverseApiRequest(
 	} catch (error) {
 		// Add more context to the error
 		const errorMessage = error instanceof Error ? error.message : String(error);
+		const errorDetails = error instanceof Error && 'response' in error 
+			? ` Response: ${JSON.stringify((error as any).response?.data || {})}`
+			: '';
 		throw new NodeOperationError(
 			this.getNode(),
-			`Dataverse API request failed: ${errorMessage}. URL: ${options.url}`,
+			`Dataverse API request failed: ${errorMessage}. URL: ${options.url}${errorDetails}`,
 		);
 	}
 }
@@ -271,6 +274,112 @@ export async function searchTables(
 }
 
 /**
+ * Get image and file fields from entity metadata
+ */
+export async function getImageAndFileFields(
+	this: IExecuteFunctions,
+	table: string,
+	itemIndex: number,
+): Promise<{ imageFields: string[]; fileFields: string[] }> {
+	const imageFields: string[] = [];
+	const fileFields: string[] = [];
+
+	try {
+		// Get the logical name from entity set name
+		let logicalName = table;
+		try {
+			const entityResponse = (await dataverseApiRequest.call(
+				this,
+				'GET',
+				'/EntityDefinitions',
+				undefined,
+				{
+					$select: 'LogicalName,EntitySetName',
+					$filter: `EntitySetName eq '${table}'`,
+				},
+				itemIndex,
+			)) as DataverseApiResponse;
+			
+			if (entityResponse.value && entityResponse.value.length > 0) {
+				logicalName = (entityResponse.value[0] as { LogicalName: string }).LogicalName;
+			}
+		} catch {
+			// Continue with table name as logical name
+		}
+
+		// Fetch field metadata
+		// Note: AttributeType is returned as a string like "Image" or "File", not as an enum
+		const response = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			`/EntityDefinitions(LogicalName='${logicalName}')/Attributes`,
+			undefined,
+			{
+				$select: 'LogicalName,AttributeType',
+			},
+			itemIndex,
+		)) as DataverseApiResponse;
+
+		const attributes = (response.value || []) as Array<{
+			LogicalName: string;
+			AttributeType?: string;
+		}>;
+
+		console.log(`Total attributes fetched: ${attributes.length}`);
+		
+		// Log a sample of attribute types to see what we're getting
+		const sampleTypes = new Set<string>();
+		for (const attr of attributes) {
+			if (attr.AttributeType) {
+				sampleTypes.add(attr.AttributeType);
+			}
+		}
+		console.log(`Sample AttributeTypes found: ${Array.from(sampleTypes).slice(0, 10).join(', ')}`);
+		
+		// Log fields that might be documents or images
+		for (const attr of attributes) {
+			const fieldName = attr.LogicalName;
+			if (fieldName && (fieldName.includes('document') || fieldName.includes('img') || fieldName.includes('image') || fieldName.includes('file'))) {
+				console.log(`Potential file/image field: ${fieldName} = ${attr.AttributeType}`);
+			}
+		}
+
+		// Build a map of field names for quick lookup
+		const fieldNameSet = new Set(attributes.map(a => a.LogicalName));
+		
+		for (const attr of attributes) {
+			const fieldName = attr.LogicalName;
+			const attrType = attr.AttributeType;
+
+			// In Dataverse, file and image columns are Virtual attributes
+			// We can identify them by checking if they have associated metadata fields
+			if (attrType === 'Virtual' && fieldName) {
+				// Check if this is an image field (has _url and _timestamp)
+				const hasImgUrl = fieldNameSet.has(`${fieldName}_url`);
+				const hasImgTimestamp = fieldNameSet.has(`${fieldName}_timestamp`);
+				
+				if (hasImgUrl && hasImgTimestamp) {
+					console.log(`Found IMAGE field: ${fieldName} (Virtual with _url and _timestamp)`);
+					imageFields.push(fieldName);
+				}
+				// Check if this is a file/document field (has _name)
+				else if (fieldNameSet.has(`${fieldName}_name`)) {
+					console.log(`Found FILE field: ${fieldName} (Virtual with _name)`);
+					fileFields.push(fieldName);
+				}
+			}
+		}
+		
+		console.log(`Found ${imageFields.length} image fields and ${fileFields.length} file fields`);
+	} catch (error) {
+		// If metadata fetch fails, return empty arrays
+		console.error('Failed to fetch field metadata:', error);
+	}
+
+	return { imageFields, fileFields };
+}
+
+/**
  * Get table fields for display in dropdown
  */
 export async function getTableFieldsForDisplay(
@@ -326,15 +435,20 @@ export async function getTableFieldsForDisplay(
 					$orderby: 'LogicalName',
 				},
 			)) as DataverseApiResponse;
-		} catch {
+		} catch (error) {
 			// If 404, the table might not exist or we need to use a different identifier
+			const errorMsg = error instanceof Error ? error.message : String(error);
 			return [
 				{
 					name: `⚠️ Could not load fields for table: ${tableValue}`,
 					value: '',
 				},
 				{
-					name: 'The table may not exist or you may not have permission',
+					name: `LogicalName used: ${logicalName}`,
+					value: '',
+				},
+				{
+					name: `Error: ${errorMsg}`,
 					value: '',
 				},
 			];

@@ -2,6 +2,7 @@ import type { IExecuteFunctions, IDataObject, INodeExecutionData, IBinaryKeyData
 import {
 	dataverseApiRequest,
 	dataverseApiBinaryRequest,
+	getImageAndFileFields,
 	buildRecordIdentifier,
 	fieldsToObject,
 	buildODataQuery,
@@ -35,6 +36,8 @@ export async function getRecord(
 	const options = this.getNodeParameter('options', itemIndex, {}) as IDataObject;
 	const downloadImages = options.downloadImages as string || 'none';
 	const imageFieldNames = options.imageFieldNames as string || '';
+	const downloadFiles = options.downloadFiles as boolean || false;
+	const fileFieldNames = options.fileFieldNames as string || '';
 
 	let recordIdentifier = '';
 
@@ -57,40 +60,50 @@ export async function getRecord(
 
 	// Download images if requested
 	if (downloadImages !== 'none') {
-		const imageFields: string[] = [];
+		let imageFieldsToDownload: string[] = [];
 		
 		// If specific field names provided, use those
 		if (imageFieldNames) {
 			const fieldList = imageFieldNames.split(',').map(f => f.trim());
 			for (const fieldName of fieldList) {
 				if (record[fieldName]) {
-					imageFields.push(fieldName);
+					imageFieldsToDownload.push(fieldName);
 				}
 			}
 		} else {
-			// Auto-detect image fields - look for base64 encoded data (starts with / or i which are common JPEG/PNG base64 starts)
-			// Also check for common image field patterns
-			for (const key of Object.keys(record)) {
-				const value = record[key];
-				if (typeof value === 'string' && 
-					value.length > 100 && // Reasonable minimum for image data
-					!key.includes('_url') &&
-					!key.includes('_timestamp') &&
-					!key.endsWith('id') &&
-					!key.endsWith('name')) {
-					// Check if it looks like base64 image data (JPEG starts with /9j/, PNG with iVBOR)
-					if (value.startsWith('/9j/') || value.startsWith('iVBOR') || 
-						key.endsWith('_img') || key.endsWith('_image') || 
-						key.includes('photo') || key.includes('picture') || 
-						key.includes('avatar') || key === 'entityimage') {
-						imageFields.push(key);
+			// Auto-detect using entity metadata
+			const metadata = await getImageAndFileFields.call(this, table, itemIndex);
+			
+			// Use image fields from metadata that exist in the record and have data
+			for (const fieldName of metadata.imageFields) {
+				const fieldValue = record[fieldName];
+				// Skip if field is null, undefined, or empty string
+				if (fieldValue !== null && fieldValue !== undefined && fieldValue !== '') {
+					imageFieldsToDownload.push(fieldName);
+				}
+			}
+			
+			// Fallback: if no metadata fields found, use pattern matching
+			if (imageFieldsToDownload.length === 0) {
+				for (const key of Object.keys(record)) {
+					const value = record[key];
+					if (typeof value === 'string' && 
+						value.length > 100 &&
+						!key.includes('_url') &&
+						!key.includes('_timestamp') &&
+						!key.endsWith('id') &&
+						!key.endsWith('name')) {
+						// Check if it looks like base64 image data
+						if (value.startsWith('/9j/') || value.startsWith('iVBOR')) {
+							imageFieldsToDownload.push(key);
+						}
 					}
 				}
 			}
 		}
 
 		// Convert each image field to binary
-		for (const fieldName of imageFields) {
+		for (const fieldName of imageFieldsToDownload) {
 			try {
 				let imageBuffer: Buffer;
 				
@@ -168,6 +181,89 @@ export async function getRecord(
 			} catch (error) {
 				// Image field conversion failed, log error but continue
 				console.error(`Failed to download image ${fieldName}:`, error);
+			}
+		}
+	}
+
+	// Download files if requested
+	if (downloadFiles) {
+		let fileFieldsToDownload: string[] = [];
+		
+		// If specific field names provided, use those
+		if (fileFieldNames) {
+			const fieldList = fileFieldNames.split(',').map(f => f.trim());
+			for (const fieldName of fieldList) {
+				if (record[fieldName]) {
+					fileFieldsToDownload.push(fieldName);
+				}
+			}
+			console.log(`Manual file fields specified: ${fileFieldNames}, found: ${fileFieldsToDownload.join(',')}`);
+		} else {
+			// Auto-detect using entity metadata
+			const metadata = await getImageAndFileFields.call(this, table, itemIndex);
+			console.log(`Metadata file fields: ${metadata.fileFields.join(',')}`);
+			
+			// Use file fields from metadata that exist in the record and have data
+			for (const fieldName of metadata.fileFields) {
+				const fieldValue = record[fieldName];
+				// Skip if field is null, undefined, or empty string
+				if (fieldValue !== null && fieldValue !== undefined && fieldValue !== '') {
+					fileFieldsToDownload.push(fieldName);
+				}
+			}
+			console.log(`File fields to download: ${fileFieldsToDownload.join(',')}`);
+		}
+
+		// Download each file field
+		for (const fieldName of fileFieldsToDownload) {
+			try {
+				let fileBuffer: Buffer;
+				let fileName: string;
+				let mimeType = 'application/octet-stream';
+				
+				// Get record ID for filename
+				let fileRecordId = '';
+				if (recordIdType === 'id') {
+					fileRecordId = this.getNodeParameter('recordId', itemIndex) as string;
+				} else {
+					const primaryKeyField = Object.keys(record).find(key => key.endsWith('id') && !key.includes('_'));
+					fileRecordId = primaryKeyField ? (record[primaryKeyField] as string) : 'record';
+				}
+				
+				// Files use the Web API /$value endpoint
+				// Format: /api/data/v9.2/[entity]([id])/[field]/$value
+				const fileEndpoint = `/${table}(${recordIdentifier})/${fieldName}/$value`;
+				console.log(`Downloading file from: ${fileEndpoint}`);
+				
+				fileBuffer = await dataverseApiBinaryRequest.call(
+					this,
+					'GET',
+					fileEndpoint,
+					itemIndex,
+				);
+				
+				// Try to get filename from record
+				const fileNameField = `${fieldName}_name`;
+				fileName = (record[fileNameField] as string) || `${fileRecordId}_${fieldName}`;
+				console.log(`Downloaded file: ${fileName}, size: ${fileBuffer.length} bytes`);
+				
+				const binary = await this.helpers.prepareBinaryData(
+					fileBuffer,
+					fileName,
+					mimeType,
+				);
+
+				// Create a clean binary property name
+				let binaryPropertyName = fieldName;
+				if (fieldName.includes('_')) {
+					const parts = fieldName.split('_');
+					binaryPropertyName = parts.length > 2 ? fieldName : parts[parts.length - 1];
+				}
+
+				binaryData[binaryPropertyName] = binary;
+			} catch (error) {
+				// File download failed, log error but continue
+				console.error(`Failed to download file ${fieldName}:`, error);
 			}
 		}
 	}

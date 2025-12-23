@@ -105,8 +105,8 @@ export const optionsDescription: INodeProperties = {
 			},
 			default: '',
 			required: true,
-			description: 'Provide an access token (e.g., from webhook headers or previous nodes)',
-			placeholder: '={{$json.headers.authorization.replace("Bearer ", "")}}',
+			description: 'Provide an access token. Note: For field name dropdown to work, use {{ $json.token }} from the previous node. Named node references like {{ $(\'token\').item.json.token }} work for execution but not for dropdowns.',
+			placeholder: '={{ $json.token }}',
 		},
 		{
 			displayName: 'Download Images',
@@ -133,7 +133,7 @@ export const optionsDescription: INodeProperties = {
 				},
 			],
 			default: 'none',
-			description: 'Whether to download image fields. Thumbnails use base64 data from response, full images download via /$value endpoint.',
+			description: 'Whether to download image fields. Thumbnails use base64 data from response, full images download via Image endpoint.',
 		},
 		{
 			displayName: 'Image Field Names',
@@ -148,7 +148,35 @@ export const optionsDescription: INodeProperties = {
 			},
 			default: '',
 			placeholder: 'e.g., crb1b_img,entityimage',
-			description: 'Comma-separated list of image field names to download. Leave empty to auto-detect fields ending with _img or containing "image".',
+			description: 'Comma-separated list of image field names to download. Leave empty to auto-detect using field metadata.',
+		},
+		{
+			displayName: 'Download Files',
+			name: 'downloadFiles',
+			type: 'boolean',
+			displayOptions: {
+				show: {
+					'/resource': ['record'],
+					'/operation': ['get'],
+				},
+			},
+			default: false,
+			description: 'Whether to download file/document fields as binary data. Files are downloaded via the File endpoint.',
+		},
+		{
+			displayName: 'File Field Names',
+			name: 'fileFieldNames',
+			type: 'string',
+			displayOptions: {
+				show: {
+					'/resource': ['record'],
+					'/operation': ['get'],
+					downloadFiles: [true],
+				},
+			},
+			default: '',
+			placeholder: 'e.g., crb1b_document,attachment',
+			description: 'Comma-separated list of file field names to download. Leave empty to auto-detect using field metadata.',
 		},
 	],
 };
