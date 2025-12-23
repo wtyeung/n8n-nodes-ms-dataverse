@@ -40,10 +40,38 @@ export async function executeSqlQuery(
 			);
 		}
 	} else {
-		// Get credentials and access token from OAuth2
+		// Get credentials from OAuth2
 		const credentials = await this.getCredentials('dataverseOAuth2Api') as OAuth2Credentials;
 		environmentUrl = credentials.environmentUrl;
-		accessToken = credentials.oauthTokenData?.access_token || '';
+		
+		// Use n8n's OAuth2 helper to get access token (handles refresh automatically)
+		const oAuth2Options = {
+			tokenType: 'Bearer',
+			keyToIncludeInAccessTokenHeader: 'access_token',
+		};
+		
+		try {
+			// This will automatically refresh the token if needed
+			await this.helpers.requestOAuth2.call(
+				this,
+				'dataverseOAuth2Api',
+				{
+					url: `${environmentUrl}/api/data/v9.2/WhoAmI`,
+					method: 'GET',
+				},
+				oAuth2Options,
+			);
+			
+			// Extract token from the request that was made
+			// The token is already refreshed at this point
+			const refreshedCredentials = await this.getCredentials('dataverseOAuth2Api') as OAuth2Credentials;
+			accessToken = refreshedCredentials.oauthTokenData?.access_token || '';
+		} catch (error) {
+			throw new NodeOperationError(
+				this.getNode(),
+				'Failed to get OAuth2 access token. Please re-authenticate.',
+			);
+		}
 
 		if (!accessToken) {
 			throw new NodeOperationError(
