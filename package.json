@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-ms-dataverse",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "n8n community node for Microsoft Dataverse (Power Platform)",
   "license": "MIT",
   "homepage": "https://github.com/wtyeung/n8n-nodes-ms-dataverse#readme",
@@ -12,7 +12,10 @@
     "power-platform",
     "dynamics-365"
   ],
-  "author": { "name": "Tim Yeung", "email": "tim.yeung@hku.hk" },
+  "author": {
+    "name": "Tim Yeung",
+    "email": "tim.yeung@hku.hk"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/wtyeung/n8n-nodes-ms-dataverse.git"
@@ -26,13 +29,17 @@
     "release": "n8n-node release",
     "prepublishOnly": "n8n-node prerelease"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "n8n": {
     "n8nNodesApiVersion": 1,
     "credentials": [
       "dist/credentials/MicrosoftDataverseOAuth2Api.credentials.js"
     ],
-    "nodes": ["dist/nodes/MicrosoftDataverse/MicrosoftDataverse.node.js"],
+    "nodes": [
+      "dist/nodes/MicrosoftDataverse/MicrosoftDataverse.node.js"
+    ],
     "strict": false
   },
   "devDependencies": {
@@ -43,6 +50,10 @@
     "release-it": "^19.0.4",
     "typescript": "5.9.2"
   },
-  "dependencies": { "mssql": "^11.0.1" },
-  "peerDependencies": { "n8n-workflow": "*" }
+  "dependencies": {
+    "mssql": "^11.0.1"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
 }
