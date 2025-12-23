@@ -11,7 +11,7 @@ export const resourceDescription: INodeProperties = {
 			value: 'record',
 		},
 		{
-			name: 'SQL Query',
+			name: 'SQL Query via TDS (Read-Only)',
 			value: 'sql',
 		},
 	],
@@ -102,6 +102,11 @@ export const tableDescription: INodeProperties = {
 	type: 'resourceLocator',
 	default: { mode: 'list', value: '' },
 	required: true,
+	displayOptions: {
+		show: {
+			resource: ['record'],
+		},
+	},
 	modes: [
 		{
 			displayName: 'From List',

@@ -5,14 +5,14 @@ import type {
 	INodeProperties,
 } from 'n8n-workflow';
 
-export class MicrosoftDataverseOAuth2Api implements ICredentialType {
-	name = 'microsoftDataverseOAuth2Api';
+export class DataverseOAuth2Api implements ICredentialType {
+	name = 'dataverseOAuth2Api';
 
 	extends = ['microsoftOAuth2Api'];
 
-	displayName = 'Microsoft Dataverse OAuth2 API';
+	displayName = 'Dataverse OAuth2 API';
 
-	icon = 'file:microsoft.svg' as const;
+	icon = 'file:dataverse.png' as const;
 
 	documentationUrl = 'https://docs.microsoft.com/en-us/power-apps/developer/data-platform/authenticate-oauth';
 

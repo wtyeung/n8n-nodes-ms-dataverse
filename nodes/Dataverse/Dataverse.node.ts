@@ -29,24 +29,24 @@ import {
 import { executeSqlQuery } from './operations/SqlOperations';
 import type { Operation } from './types';
 
-export class MicrosoftDataverse implements INodeType {
+export class Dataverse implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Microsoft Dataverse',
-		name: 'microsoftDataverse',
-		icon: 'file:dataverse.svg',
+		displayName: 'Dataverse',
+		name: 'dataverse',
+		icon: 'file:dataverse.png',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
-		description: 'Interact with Microsoft Dataverse (Power Platform)',
+		description: 'Interact with Dataverse (Power Platform)',
 		defaults: {
-			name: 'Microsoft Dataverse',
+			name: 'Dataverse',
 		},
 		inputs: ['main'],
 		outputs: ['main'],
 		usableAsTool: true,
 		credentials: [
 			{
-				name: 'microsoftDataverseOAuth2Api',
+				name: 'dataverseOAuth2Api',
 				required: true,
 			},
 		],

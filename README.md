@@ -36,13 +36,22 @@ This node supports the following operations on Dataverse records:
 - **Get Many**: Retrieve multiple records using OData queries or FetchXML
 - **Update**: Update an existing record
 
+### SQL Query via TDS (Read-Only)
+
+- **Execute Query**: Run SQL queries directly against Dataverse using the Tabular Data Stream (TDS) endpoint
+  - Supports standard SQL SELECT statements
+  - Read-only access (no INSERT, UPDATE, DELETE)
+  - Requires TDS endpoint to be enabled in your Dataverse environment
+
 ### Features
 
 - **Dynamic Table Discovery**: Automatically loads available tables from your Dataverse environment using the OData metadata endpoint
 - **OData Support**: Use OData query syntax for filtering, sorting, and selecting fields
 - **FetchXML Support**: Execute complex queries using FetchXML
+- **TDS/SQL Support**: Execute SQL queries for complex data retrieval and analysis
 - **Alternate Keys**: Retrieve records using alternate keys instead of GUIDs
 - **Field Selection**: Choose specific fields to return in queries
+- **Custom Token Support**: Use access tokens from webhooks or other nodes
 
 ## Credentials
 
@@ -140,6 +149,68 @@ Alternate Keys:
   - Key Name: emailaddress1
   - Key Value: contact@example.com
 ```
+
+### Executing SQL Queries via TDS
+
+#### Prerequisites
+
+1. **Enable TDS Endpoint** in your Dataverse environment:
+   - Go to [Power Platform Admin Center](https://admin.powerplatform.microsoft.com/)
+   - Select your environment
+   - Go to **Settings** → **Product** → **Features**
+   - Enable **"Tabular Data Stream (TDS) endpoint"**
+   - Save changes
+
+2. **Configure IP Firewall** (if applicable):
+   - Ensure your n8n instance IP is allowed in Dataverse firewall rules
+
+3. **OAuth2 Scope**: Ensure your OAuth2 token includes the scope: `https://yourorg.crm.dynamics.com/.default`
+
+#### Using SQL Queries
+
+1. Select **SQL Query via TDS (Read-Only)** as the resource
+2. Select **Execute Query** operation
+3. Enter your SQL query (e.g., `SELECT TOP 10 name, emailaddress1 FROM account`)
+4. Execute the workflow
+
+#### Example SQL Queries
+
+**Get top 10 accounts:**
+```sql
+SELECT TOP 10 accountid, name, emailaddress1, createdon 
+FROM account 
+ORDER BY createdon DESC
+```
+
+**Filter with WHERE clause:**
+```sql
+SELECT name, revenue, industrycode 
+FROM account 
+WHERE revenue > 1000000 
+AND statecode = 0
+```
+
+**Join tables:**
+```sql
+SELECT a.name, c.fullname, c.emailaddress1
+FROM account a
+INNER JOIN contact c ON a.accountid = c.parentcustomerid
+WHERE a.statecode = 0
+```
+
+**Note:** TDS endpoint is read-only. INSERT, UPDATE, and DELETE operations are not supported.
+
+### Using Custom Access Tokens
+
+If you receive an access token from a webhook or another node, you can use it without storing credentials:
+
+1. In the node, expand the **Options** section
+2. Enable **Use Custom Authentication**
+3. Provide the access token using an expression:
+   - From webhook: `={{$json.headers.authorization.replace("Bearer ", "")}}`
+   - From previous node: `={{$node["OAuth2Node"].json["access_token"]}}`
+
+**Use Case Example:** A Power Automate flow sends a webhook to n8n with an Authorization header. n8n extracts the token and uses it to query Dataverse without requiring separate OAuth2 setup.
 
 ## Resources
 

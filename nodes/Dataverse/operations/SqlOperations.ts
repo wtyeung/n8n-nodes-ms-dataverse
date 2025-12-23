@@ -16,7 +16,7 @@ export async function executeSqlQuery(
 	const sqlQuery = this.getNodeParameter('sqlQuery', itemIndex) as string;
 
 	// Get credentials and access token
-	const credentials = await this.getCredentials('microsoftDataverseOAuth2Api') as OAuth2Credentials;
+	const credentials = await this.getCredentials('dataverseOAuth2Api') as OAuth2Credentials;
 	const environmentUrl = credentials.environmentUrl;
 	const accessToken = credentials.oauthTokenData?.access_token;
 

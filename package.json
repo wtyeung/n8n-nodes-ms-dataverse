@@ -35,10 +35,10 @@
   "n8n": {
     "n8nNodesApiVersion": 1,
     "credentials": [
-      "dist/credentials/MicrosoftDataverseOAuth2Api.credentials.js"
+      "dist/credentials/DataverseOAuth2Api.credentials.js"
     ],
     "nodes": [
-      "dist/nodes/MicrosoftDataverse/MicrosoftDataverse.node.js"
+      "dist/nodes/Dataverse/Dataverse.node.js"
     ],
     "strict": false
   },
