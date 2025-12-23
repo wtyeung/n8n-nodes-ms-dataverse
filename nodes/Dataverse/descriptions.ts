@@ -71,7 +71,28 @@ export const optionsDescription: INodeProperties = {
 	default: {},
 	options: [
 		{
-			displayName: 'Access Token',
+			displayName: 'Custom Auth.Enable',
+			name: 'useCustomAuth',
+			type: 'boolean',
+			default: false,
+			description: 'Whether to provide a custom access token and environment URL instead of using OAuth2 credentials',
+		},
+		{
+			displayName: 'Custom Auth.Environment URL',
+			name: 'customEnvironmentUrl',
+			type: 'string',
+			displayOptions: {
+				show: {
+					useCustomAuth: [true],
+				},
+			},
+			default: '',
+			required: true,
+			description: 'The URL of your Dataverse environment',
+			placeholder: 'https://yourorg.crm.dynamics.com',
+		},
+		{
+			displayName: 'Custom Auth.Token',
 			name: 'accessToken',
 			type: 'string',
 			typeOptions: {
@@ -87,7 +108,7 @@ export const optionsDescription: INodeProperties = {
 			placeholder: '={{ $json.token }}',
 		},
 		{
-			displayName: 'Download Files',
+			displayName: 'Download Files.Enable',
 			name: 'downloadFiles',
 			type: 'boolean',
 			displayOptions: {
@@ -100,7 +121,22 @@ export const optionsDescription: INodeProperties = {
 			description: 'Whether to download file/document fields as binary data. Files are downloaded via the File endpoint.',
 		},
 		{
-			displayName: 'Download Images',
+			displayName: 'Download Files.Field Names',
+			name: 'fileFieldNames',
+			type: 'string',
+			displayOptions: {
+				show: {
+					'/resource': ['record'],
+					'/operation': ['get'],
+					downloadFiles: [true],
+				},
+			},
+			default: '',
+			placeholder: 'e.g., crb1b_document,attachment',
+			description: 'Comma-separated list of file field names to download. Leave empty to auto-detect using field metadata.',
+		},
+		{
+			displayName: 'Download Images.Enable',
 			name: 'downloadImages',
 			type: 'options',
 			displayOptions: {
@@ -127,36 +163,7 @@ export const optionsDescription: INodeProperties = {
 			description: 'Whether to download image fields. Thumbnails use base64 data from response, full images download via Image endpoint.',
 		},
 		{
-			displayName: 'Environment URL',
-			name: 'customEnvironmentUrl',
-			type: 'string',
-			displayOptions: {
-				show: {
-					useCustomAuth: [true],
-				},
-			},
-			default: '',
-			required: true,
-			description: 'The URL of your Dataverse environment',
-			placeholder: 'https://yourorg.crm.dynamics.com',
-		},
-		{
-			displayName: 'File Field Names',
-			name: 'fileFieldNames',
-			type: 'string',
-			displayOptions: {
-				show: {
-					'/resource': ['record'],
-					'/operation': ['get'],
-					downloadFiles: [true],
-				},
-			},
-			default: '',
-			placeholder: 'e.g., crb1b_document,attachment',
-			description: 'Comma-separated list of file field names to download. Leave empty to auto-detect using field metadata.',
-		},
-		{
-			displayName: 'Image Field Names',
+			displayName: 'Download Images.Field Names',
 			name: 'imageFieldNames',
 			type: 'string',
 			displayOptions: {
@@ -169,13 +176,6 @@ export const optionsDescription: INodeProperties = {
 			default: '',
 			placeholder: 'e.g., crb1b_img,entityimage',
 			description: 'Comma-separated list of image field names to download. Leave empty to auto-detect using field metadata.',
-		},
-		{
-			displayName: 'Use Custom Authentication',
-			name: 'useCustomAuth',
-			type: 'boolean',
-			default: false,
-			description: 'Whether to provide a custom access token and environment URL instead of using OAuth2 credentials',
 		},
 	],
 };
