@@ -29,7 +29,7 @@ export async function executeSqlQuery(
 
 	// Extract domain from environment URL
 	// e.g., https://org.crm.dynamics.com -> org.crm.dynamics.com
-	const urlMatch = environmentUrl.match(/https?:\/\/([^\/]+)/);
+	const urlMatch = environmentUrl.match(/https?:\/\/([^/]+)/);
 	if (!urlMatch) {
 		throw new NodeOperationError(
 			this.getNode(),
