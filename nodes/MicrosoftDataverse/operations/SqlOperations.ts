@@ -27,20 +27,24 @@ export async function executeSqlQuery(
 		);
 	}
 
-	// Extract organization name from environment URL
-	// e.g., https://org.crm.dynamics.com -> org
-	const urlMatch = environmentUrl.match(/https?:\/\/([^.]+)\./);
+	// Extract domain from environment URL
+	// e.g., https://org.crm.dynamics.com -> org.crm.dynamics.com
+	const urlMatch = environmentUrl.match(/https?:\/\/([^\/]+)/);
 	if (!urlMatch) {
 		throw new NodeOperationError(
 			this.getNode(),
 			'Invalid environment URL format. Expected format: https://org.crm.dynamics.com',
 		);
 	}
-	const orgName = urlMatch[1];
+	const domain = urlMatch[1];
+	
+	// Extract organization name for database
+	const orgMatch = domain.match(/^([^.]+)\./);
+	const orgName = orgMatch ? orgMatch[1] : domain;
 
 	// TDS endpoint configuration for Dataverse
 	const config: sql.config = {
-		server: `${orgName}.api.crm.dynamics.com`,
+		server: domain,
 		authentication: {
 			type: 'azure-active-directory-access-token',
 			options: {
