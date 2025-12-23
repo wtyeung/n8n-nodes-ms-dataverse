@@ -15,16 +15,42 @@ export async function executeSqlQuery(
 ): Promise<INodeExecutionData[]> {
 	const sqlQuery = this.getNodeParameter('sqlQuery', itemIndex) as string;
 
-	// Get credentials and access token
-	const credentials = await this.getCredentials('dataverseOAuth2Api') as OAuth2Credentials;
-	const environmentUrl = credentials.environmentUrl;
-	const accessToken = credentials.oauthTokenData?.access_token;
+	// Check if using custom authentication
+	let environmentUrl = '';
+	let accessToken = '';
+	
+	const options = this.getNodeParameter('options', itemIndex, {}) as IDataObject;
+	const useCustomAuth = options.useCustomAuth as boolean || false;
+	
+	if (useCustomAuth) {
+		// Use custom authentication
+		environmentUrl = options.customEnvironmentUrl as string || '';
+		accessToken = options.accessToken as string || '';
+		
+		if (!environmentUrl) {
+			throw new NodeOperationError(
+				this.getNode(),
+				'Environment URL is required when using custom authentication.',
+			);
+		}
+		if (!accessToken) {
+			throw new NodeOperationError(
+				this.getNode(),
+				'Access Token is required when using custom authentication.',
+			);
+		}
+	} else {
+		// Get credentials and access token from OAuth2
+		const credentials = await this.getCredentials('dataverseOAuth2Api') as OAuth2Credentials;
+		environmentUrl = credentials.environmentUrl;
+		accessToken = credentials.oauthTokenData?.access_token || '';
 
-	if (!accessToken) {
-		throw new NodeOperationError(
-			this.getNode(),
-			'No access token available. Please authenticate with OAuth2.',
-		);
+		if (!accessToken) {
+			throw new NodeOperationError(
+				this.getNode(),
+				'No access token available. Please authenticate with OAuth2.',
+			);
+		}
 	}
 
 	// Extract domain from environment URL
