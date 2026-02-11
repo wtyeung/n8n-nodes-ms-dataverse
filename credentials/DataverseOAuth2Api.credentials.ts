@@ -25,12 +25,14 @@ export class DataverseOAuth2Api implements ICredentialType {
 			placeholder: 'https://org.crm.dynamics.com',
 			description: 'The URL of your Dataverse environment (e.g., https://yourorg.crm.dynamics.com)',
 			required: true,
+			noDataExpression: true,
 		},
 		{
 			displayName: 'Grant Type',
 			name: 'grantType',
 			type: 'hidden',
 			default: 'authorizationCode',
+			noDataExpression: true,
 		},
 		{
 			displayName: 'Authorization URL',
@@ -38,6 +40,7 @@ export class DataverseOAuth2Api implements ICredentialType {
 			type: 'hidden',
 			default: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
 			required: true,
+			noDataExpression: true,
 		},
 		{
 			displayName: 'Access Token URL',
@@ -45,24 +48,28 @@ export class DataverseOAuth2Api implements ICredentialType {
 			type: 'hidden',
 			default: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
 			required: true,
+			noDataExpression: true,
 		},
 		{
 			displayName: 'Scope',
 			name: 'scope',
 			type: 'hidden',
 			default: '={{$self["environmentUrl"]}}/.default offline_access',
+			noDataExpression: true,
 		},
 		{
 			displayName: 'Auth URI Query Parameters',
 			name: 'authQueryParameters',
 			type: 'hidden',
 			default: 'response_mode=query',
+			noDataExpression: true,
 		},
 		{
 			displayName: 'Authentication',
 			name: 'authentication',
 			type: 'hidden',
 			default: 'body',
+			noDataExpression: true,
 		},
 	];
 
