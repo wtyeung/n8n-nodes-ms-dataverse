@@ -18,6 +18,14 @@ export const resourceDescription: INodeProperties = {
 			name: 'Webhook',
 			value: 'webhook',
 		},
+		{
+			name: 'Plugin',
+			value: 'plugin',
+		},
+		{
+			name: 'Web Resource',
+			value: 'webresource',
+		},
 	],
 	default: 'record',
 };
@@ -189,10 +197,10 @@ export const tableDescription: INodeProperties = {
 	name: 'table',
 	type: 'resourceLocator',
 	default: { mode: 'list', value: '' },
-	description: 'Optional: Select a table to view its field schema below',
+	description: 'Select a table for the operation',
 	displayOptions: {
 		show: {
-			resource: ['record', 'sql', 'webhook'],
+			resource: ['record', 'sql', 'webhook', 'plugin'],
 		},
 	},
 	modes: [
@@ -550,22 +558,40 @@ export const webhookOperationDescription: INodeProperties = {
 	},
 	options: [
 		{
-			name: 'Register',
-			value: 'registerWebhook',
-			description: 'Register a new webhook for a table',
-			action: 'Register a webhook',
+			name: 'Register Endpoint',
+			value: 'registerEndpoint',
+			description: 'Create a new webhook endpoint (ServiceEndpoint) that can be reused',
+			action: 'Register a webhook endpoint',
 		},
 		{
-			name: 'List',
-			value: 'listWebhooks',
-			description: 'List all registered webhooks',
-			action: 'List webhooks',
+			name: 'Register Step',
+			value: 'registerWebhookStep',
+			description: 'Register a step to link endpoint with a table/message',
+			action: 'Register a webhook step',
 		},
 		{
-			name: 'Delete',
-			value: 'deleteWebhook',
-			description: 'Delete a registered webhook',
-			action: 'Delete a webhook',
+			name: 'List Endpoints',
+			value: 'listEndpoints',
+			description: 'List all webhook endpoints',
+			action: 'List webhook endpoints',
+		},
+		{
+			name: 'List Endpoint Steps',
+			value: 'listEndpointSteps',
+			description: 'List SDK message processing steps for an endpoint',
+			action: 'List endpoint steps',
+		},
+		{
+			name: 'Delete Endpoint',
+			value: 'deleteEndpoint',
+			description: 'Delete a webhook endpoint and all its associated steps',
+			action: 'Delete a webhook endpoint',
+		},
+		{
+			name: 'Delete Step',
+			value: 'deleteStep',
+			description: 'Delete a specific SDK message processing step',
+			action: 'Delete a step',
 		},
 		{
 			name: 'List SDK Message Filters',
@@ -574,25 +600,25 @@ export const webhookOperationDescription: INodeProperties = {
 			action: 'List SDK message filters',
 		},
 	],
-	default: 'registerWebhook',
+	default: 'registerEndpoint',
 };
 
 export const webhookOperationFields: INodeProperties[] = [
-	// Register Webhook fields
+	// Register Endpoint fields
 	{
-		displayName: 'Webhook Name',
-		name: 'webhookName',
+		displayName: 'Endpoint Name',
+		name: 'endpointName',
 		type: 'string',
 		displayOptions: {
 			show: {
 				resource: ['webhook'],
-				operation: ['registerWebhook'],
+				operation: ['registerEndpoint'],
 			},
 		},
 		default: '',
 		required: true,
-		description: 'Name for the webhook registration',
-		placeholder: 'e.g. Account Create Webhook',
+		description: 'Name for the webhook endpoint',
+		placeholder: 'e.g. My Webhook Endpoint',
 	},
 	{
 		displayName: 'Webhook URL',
@@ -601,7 +627,7 @@ export const webhookOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['webhook'],
-				operation: ['registerWebhook'],
+				operation: ['registerEndpoint'],
 			},
 		},
 		default: '',
@@ -610,13 +636,57 @@ export const webhookOperationFields: INodeProperties[] = [
 		placeholder: 'e.g. https://your-app.com/webhook/dataverse',
 	},
 	{
+		displayName: 'Description',
+		name: 'endpointDescription',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['webhook'],
+				operation: ['registerEndpoint'],
+			},
+		},
+		default: '',
+		description: 'Description for the webhook endpoint',
+		placeholder: 'e.g. Endpoint for receiving Dataverse events',
+	},
+	{
+		displayName: 'Auth Header',
+		name: 'authHeader',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['webhook'],
+				operation: ['registerEndpoint'],
+			},
+		},
+		default: '',
+		description: 'Custom authorization header value (e.g., x-api-key:your-key)',
+		placeholder: 'e.g. x-api-key:abc123',
+	},
+	// Register Webhook Step fields
+	{
+		displayName: 'Service Endpoint ID',
+		name: 'serviceEndpointId',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['webhook'],
+				operation: ['registerWebhookStep', 'deleteEndpoint', 'listEndpointSteps'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'ID of the webhook endpoint to use',
+		placeholder: 'e.g. 00000000-0000-0000-0000-000000000000',
+	},
+	{
 		displayName: 'Operation',
 		name: 'webhookOperation',
 		type: 'options',
 		displayOptions: {
 			show: {
 				resource: ['webhook'],
-				operation: ['registerWebhook'],
+				operation: ['registerWebhookStep'],
 			},
 		},
 		options: [
@@ -630,20 +700,35 @@ export const webhookOperationFields: INodeProperties[] = [
 		description: 'Dataverse operation to trigger the webhook',
 	},
 	{
-		displayName: 'Auth Header',
-		name: 'authHeader',
+		displayName: 'Step Name',
+		name: 'stepName',
 		type: 'string',
 		displayOptions: {
 			show: {
 				resource: ['webhook'],
-				operation: ['registerWebhook'],
+				operation: ['registerWebhookStep'],
 			},
 		},
 		default: '',
-		description: 'Custom authorization header value (e.g., x-api-key:your-key)',
-		placeholder: 'e.g. x-api-key:abc123',
+		description: 'Name for the SDK message processing step (optional)',
+		placeholder: 'e.g. Account Create Webhook',
 	},
-	// List Webhooks fields
+	{
+		displayName: 'Filtering Attributes',
+		name: 'filteringAttributes',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['webhook'],
+				operation: ['registerWebhookStep'],
+				webhookOperation: ['Update'],
+			},
+		},
+		default: '',
+		description: 'Comma-separated list of field names that trigger this step. Leave empty to monitor all fields.',
+		placeholder: 'e.g. name,emailaddress1,statuscode',
+	},
+	// List Endpoints fields
 	{
 		displayName: 'Return All',
 		name: 'returnAll',
@@ -651,7 +736,7 @@ export const webhookOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['webhook'],
-				operation: ['listWebhooks'],
+				operation: ['listEndpoints', 'listEndpointSteps'],
 			},
 		},
 		default: false,
@@ -664,7 +749,7 @@ export const webhookOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['webhook'],
-				operation: ['listWebhooks'],
+				operation: ['listEndpoints', 'listEndpointSteps'],
 				returnAll: [false],
 			},
 		},
@@ -675,20 +760,20 @@ export const webhookOperationFields: INodeProperties[] = [
 		default: 50,
 		description: 'Max number of results to return',
 	},
-	// Delete Webhook fields
+	// Delete Step fields
 	{
-		displayName: 'Service Endpoint ID',
-		name: 'serviceEndpointId',
+		displayName: 'Step ID',
+		name: 'stepId',
 		type: 'string',
 		displayOptions: {
 			show: {
 				resource: ['webhook'],
-				operation: ['deleteWebhook'],
+				operation: ['deleteStep'],
 			},
 		},
 		default: '',
 		required: true,
-		description: 'ID of the webhook service endpoint to delete',
+		description: 'ID of the SDK message processing step to delete',
 		placeholder: 'e.g. 00000000-0000-0000-0000-000000000000',
 	},
 ];
@@ -731,5 +816,482 @@ export const sqlQueryFields: INodeProperties[] = [
 		required: true,
 		description: 'SQL query to execute against Dataverse',
 		placeholder: 'SELECT TOP 10 name, emailaddress1 FROM account',
+	},
+];
+
+// Plugin Operations
+export const pluginOperationDescription: INodeProperties = {
+	displayName: 'Operation',
+	name: 'operation',
+	type: 'options',
+	noDataExpression: true,
+	displayOptions: {
+		show: {
+			resource: ['plugin'],
+		},
+	},
+	options: [
+		{
+			name: 'Upload Assembly',
+			value: 'uploadPluginAssembly',
+			description: 'Upload a DLL plugin assembly',
+			action: 'Upload a plugin assembly',
+		},
+		{
+			name: 'Register Step',
+			value: 'registerPluginStep',
+			description: 'Register a plugin step for a table/operation',
+			action: 'Register a plugin step',
+		},
+		{
+			name: 'List Assemblies',
+			value: 'listPluginAssemblies',
+			description: 'List all plugin assemblies',
+			action: 'List plugin assemblies',
+		},
+		{
+			name: 'Delete Assembly',
+			value: 'deletePluginAssembly',
+			description: 'Delete a plugin assembly',
+			action: 'Delete a plugin assembly',
+		},
+	],
+	default: 'uploadPluginAssembly',
+};
+
+export const pluginOperationFields: INodeProperties[] = [
+	// Upload Assembly fields
+	{
+		displayName: 'Assembly Name',
+		name: 'assemblyName',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['plugin'],
+				operation: ['uploadPluginAssembly'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'Name for the plugin assembly',
+		placeholder: 'e.g. MyPluginAssembly',
+	},
+	{
+		displayName: 'DLL File',
+		name: 'dllFile',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['plugin'],
+				operation: ['uploadPluginAssembly'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'Base64-encoded DLL content. Use an expression like {{ $binary.file.data }} if reading from a file node, or paste the base64 string directly',
+		placeholder: 'e.g. {{ $binary.file.data }}',
+	},
+	{
+		displayName: 'Source Type',
+		name: 'sourceType',
+		type: 'options',
+		displayOptions: {
+			show: {
+				resource: ['plugin'],
+				operation: ['uploadPluginAssembly'],
+			},
+		},
+		options: [
+			{ name: 'Database', value: 0 },
+			{ name: 'Disk', value: 1 },
+			{ name: 'Normal', value: 2 },
+			{ name: 'Azure', value: 3 },
+		],
+		default: 0,
+		description: 'Source type for the plugin assembly',
+	},
+	{
+		displayName: 'Isolation Mode',
+		name: 'isolationMode',
+		type: 'options',
+		displayOptions: {
+			show: {
+				resource: ['plugin'],
+				operation: ['uploadPluginAssembly'],
+			},
+		},
+		options: [
+			{ name: 'None', value: 1 },
+			{ name: 'Sandbox', value: 2 },
+		],
+		default: 2,
+		description: 'Isolation mode for the plugin (Sandbox recommended)',
+	},
+	// Register Step fields
+	{
+		displayName: 'Plugin Assembly ID',
+		name: 'pluginAssemblyId',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['plugin'],
+				operation: ['registerPluginStep'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'ID of the plugin assembly',
+		placeholder: 'e.g. 00000000-0000-0000-0000-000000000000',
+	},
+	{
+		displayName: 'Plugin Type Name',
+		name: 'pluginTypeName',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['plugin'],
+				operation: ['registerPluginStep'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'Full class name of the plugin type (e.g., Namespace.ClassName)',
+		placeholder: 'e.g. MyNamespace.MyPluginClass',
+	},
+	{
+		displayName: 'Step Name',
+		name: 'stepName',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['plugin'],
+				operation: ['registerPluginStep'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'Name for the plugin step',
+		placeholder: 'e.g. Account Create Plugin',
+	},
+	{
+		displayName: 'Event Operation',
+		name: 'eventOperation',
+		type: 'options',
+		displayOptions: {
+			show: {
+				resource: ['plugin'],
+				operation: ['registerPluginStep'],
+			},
+		},
+		options: [
+			{ name: 'Create', value: 1 },
+			{ name: 'Update', value: 2 },
+			{ name: 'Delete', value: 3 },
+		],
+		default: 1,
+		description: 'Dataverse operation that triggers the plugin',
+	},
+	{
+		displayName: 'Execution Stage',
+		name: 'stage',
+		type: 'options',
+		displayOptions: {
+			show: {
+				resource: ['plugin'],
+				operation: ['registerPluginStep'],
+			},
+		},
+		options: [
+			{ name: 'Pre-Validation', value: 10 },
+			{ name: 'Pre-Operation', value: 20 },
+			{ name: 'Post-Operation', value: 40 },
+		],
+		default: 40,
+		description: 'Execution stage of the plugin',
+	},
+	{
+		displayName: 'Filtering Attributes',
+		name: 'filteringAttributes',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['plugin'],
+				operation: ['registerPluginStep'],
+				eventOperation: [2],
+			},
+		},
+		default: '',
+		description: 'Comma-separated list of field names that trigger this step (Update operations only). Leave empty to monitor all fields.',
+		placeholder: 'e.g. name,emailaddress1,statuscode',
+	},
+	// List Assemblies fields
+	{
+		displayName: 'Return All',
+		name: 'returnAll',
+		type: 'boolean',
+		displayOptions: {
+			show: {
+				resource: ['plugin'],
+				operation: ['listPluginAssemblies'],
+			},
+		},
+		default: false,
+		description: 'Whether to return all results or only up to a given limit',
+	},
+	{
+		displayName: 'Limit',
+		name: 'limit',
+		type: 'number',
+		displayOptions: {
+			show: {
+				resource: ['plugin'],
+				operation: ['listPluginAssemblies'],
+				returnAll: [false],
+			},
+		},
+		typeOptions: {
+			minValue: 1,
+			maxValue: 500,
+		},
+		default: 50,
+		description: 'Max number of results to return',
+	},
+	// Delete Assembly fields
+	{
+		displayName: 'Assembly ID',
+		name: 'assemblyId',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['plugin'],
+				operation: ['deletePluginAssembly'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'ID of the plugin assembly to delete',
+		placeholder: 'e.g. 00000000-0000-0000-0000-000000000000',
+	},
+];
+
+// Web Resource Operations
+export const webResourceOperationDescription: INodeProperties = {
+	displayName: 'Operation',
+	name: 'operation',
+	type: 'options',
+	noDataExpression: true,
+	displayOptions: {
+		show: {
+			resource: ['webresource'],
+		},
+	},
+	options: [
+		{
+			name: 'Upload',
+			value: 'uploadWebResource',
+			description: 'Upload a new web resource (JS, CSS, HTML, etc.)',
+			action: 'Upload a web resource',
+		},
+		{
+			name: 'Update',
+			value: 'updateWebResource',
+			description: 'Update an existing web resource content',
+			action: 'Update a web resource',
+		},
+		{
+			name: 'List',
+			value: 'listWebResources',
+			description: 'List web resources',
+			action: 'List web resources',
+		},
+		{
+			name: 'Delete',
+			value: 'deleteWebResource',
+			description: 'Delete a web resource',
+			action: 'Delete a web resource',
+		},
+	],
+	default: 'uploadWebResource',
+};
+
+export const webResourceOperationFields: INodeProperties[] = [
+	// Upload Web Resource fields
+	{
+		displayName: 'Display Name',
+		name: 'webResourceDisplayName',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['webresource'],
+				operation: ['uploadWebResource'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'Display name for the web resource',
+		placeholder: 'e.g. My Custom Script',
+	},
+	{
+		displayName: 'Unique Name',
+		name: 'webResourceName',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['webresource'],
+				operation: ['uploadWebResource'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'Schema name for the web resource (must include publisher prefix)',
+		placeholder: 'e.g. prefix_/scripts/myscript.js',
+	},
+	{
+		displayName: 'Web Resource Type',
+		name: 'webResourceType',
+		type: 'options',
+		displayOptions: {
+			show: {
+				resource: ['webresource'],
+				operation: ['uploadWebResource'],
+			},
+		},
+		options: [
+			{ name: 'HTML', value: 1 },
+			{ name: 'CSS', value: 2 },
+			{ name: 'JavaScript', value: 3 },
+			{ name: 'XML', value: 4 },
+			{ name: 'PNG', value: 5 },
+			{ name: 'JPG', value: 6 },
+			{ name: 'GIF', value: 7 },
+			{ name: 'XAP (Silverlight)', value: 8 },
+			{ name: 'XSL', value: 9 },
+			{ name: 'ICO', value: 10 },
+			{ name: 'SVG', value: 11 },
+			{ name: 'RESX', value: 12 },
+		],
+		default: 3,
+		description: 'Type of web resource',
+	},
+	{
+		displayName: 'Content',
+		name: 'webResourceContent',
+		type: 'string',
+		typeOptions: {
+			rows: 10,
+		},
+		displayOptions: {
+			show: {
+				resource: ['webresource'],
+				operation: ['uploadWebResource'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'Content of the web resource. For text types (JS, CSS, HTML), provide the raw code — it will be base64-encoded automatically. For binary types (images), provide base64-encoded content.',
+		placeholder: 'e.g. console.log("Hello Dataverse");',
+	},
+	{
+		displayName: 'Description',
+		name: 'webResourceDescription',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['webresource'],
+				operation: ['uploadWebResource'],
+			},
+		},
+		default: '',
+		description: 'Description for the web resource',
+	},
+	// Update Web Resource fields
+	{
+		displayName: 'Web Resource ID',
+		name: 'webResourceId',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['webresource'],
+				operation: ['updateWebResource', 'deleteWebResource'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'ID of the web resource',
+		placeholder: 'e.g. 00000000-0000-0000-0000-000000000000',
+	},
+	{
+		displayName: 'Content',
+		name: 'webResourceContent',
+		type: 'string',
+		typeOptions: {
+			rows: 10,
+		},
+		displayOptions: {
+			show: {
+				resource: ['webresource'],
+				operation: ['updateWebResource'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'New content for the web resource. For text types (JS, CSS, HTML), provide the raw code — it will be base64-encoded automatically.',
+		placeholder: 'e.g. console.log("Updated code");',
+	},
+	// List Web Resources fields
+	{
+		displayName: 'Return All',
+		name: 'returnAll',
+		type: 'boolean',
+		displayOptions: {
+			show: {
+				resource: ['webresource'],
+				operation: ['listWebResources'],
+			},
+		},
+		default: false,
+		description: 'Whether to return all results or only up to a given limit',
+	},
+	{
+		displayName: 'Limit',
+		name: 'limit',
+		type: 'number',
+		displayOptions: {
+			show: {
+				resource: ['webresource'],
+				operation: ['listWebResources'],
+				returnAll: [false],
+			},
+		},
+		typeOptions: {
+			minValue: 1,
+			maxValue: 500,
+		},
+		default: 50,
+		description: 'Max number of results to return',
+	},
+	{
+		displayName: 'Filter by Type',
+		name: 'webResourceTypeFilter',
+		type: 'options',
+		displayOptions: {
+			show: {
+				resource: ['webresource'],
+				operation: ['listWebResources'],
+			},
+		},
+		options: [
+			{ name: 'All', value: 0 },
+			{ name: 'HTML', value: 1 },
+			{ name: 'CSS', value: 2 },
+			{ name: 'JavaScript', value: 3 },
+			{ name: 'XML', value: 4 },
+			{ name: 'PNG', value: 5 },
+			{ name: 'JPG', value: 6 },
+			{ name: 'GIF', value: 7 },
+			{ name: 'SVG', value: 11 },
+		],
+		default: 0,
+		description: 'Filter web resources by type',
 	},
 ];

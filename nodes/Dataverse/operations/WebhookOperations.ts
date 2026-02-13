@@ -45,22 +45,22 @@ async function getSdkMessageFilterId(
 }
 
 /**
- * Register a new webhook for a Dataverse table
+ * Register a new webhook endpoint (ServiceEndpoint)
+ * This creates a reusable webhook URL that can be associated with multiple tables/messages
  */
-export async function registerWebhook(
+export async function registerEndpoint(
 	this: IExecuteFunctions,
 	itemIndex: number,
 ): Promise<INodeExecutionData> {
-	const table = this.getNodeParameter('table', itemIndex, '', { extractValue: true }) as string;
+	const endpointName = this.getNodeParameter('endpointName', itemIndex) as string;
 	const webhookUrl = this.getNodeParameter('webhookUrl', itemIndex) as string;
-	const operation = this.getNodeParameter('webhookOperation', itemIndex) as string;
-	const webhookName = this.getNodeParameter('webhookName', itemIndex) as string;
 	const authHeader = this.getNodeParameter('authHeader', itemIndex, '') as string;
+	const description = this.getNodeParameter('endpointDescription', itemIndex, '') as string;
 
-	// Step 1: Create ServiceEndpoint
+	// Create ServiceEndpoint
 	const serviceEndpointBody: IDataObject = {
-		name: webhookName,
-		description: `Webhook for ${table} ${operation} events`,
+		name: endpointName,
+		description: description || `Webhook endpoint: ${endpointName}`,
 		contract: 8, // Webhook contract
 		messageformat: 2, // JSON format
 		url: webhookUrl,
@@ -71,29 +71,53 @@ export async function registerWebhook(
 		serviceEndpointBody.authvalue = authHeader;
 	}
 
-	const serviceEndpointResponse = (await dataverseApiRequest.call(
+	const serviceEndpointResponse = await dataverseApiRequest.call(
 		this,
 		'POST',
 		'/serviceendpoints',
 		serviceEndpointBody,
 		undefined,
 		itemIndex,
-	)) as IDataObject;
+	);
 
-	// Extract serviceendpointid from the response headers (odata-entityid)
-	// The response should contain the ID in the headers
+	// Extract serviceendpointid from the response
 	const serviceEndpointId = (serviceEndpointResponse as unknown as { serviceendpointid: string }).serviceendpointid;
 
 	if (!serviceEndpointId) {
 		throw new Error('Failed to create service endpoint - no ID returned');
 	}
 
-	// Step 2: Get SDK Message Filter ID
+	return {
+		json: {
+			serviceendpointid: serviceEndpointId,
+			name: endpointName,
+			url: webhookUrl,
+			authtype: authHeader ? 4 : 0,
+			success: true,
+		},
+		pairedItem: { item: itemIndex },
+	};
+}
+
+/**
+ * Register a webhook step to link an endpoint with a table/message (create SDK Message Processing Step)
+ */
+export async function registerWebhookStep(
+	this: IExecuteFunctions,
+	itemIndex: number,
+): Promise<INodeExecutionData> {
+	const table = this.getNodeParameter('table', itemIndex, '', { extractValue: true }) as string;
+	const serviceEndpointId = this.getNodeParameter('serviceEndpointId', itemIndex) as string;
+	const operation = this.getNodeParameter('webhookOperation', itemIndex) as string;
+	const stepName = this.getNodeParameter('stepName', itemIndex, '') as string;
+	const filteringAttributes = this.getNodeParameter('filteringAttributes', itemIndex, '') as string;
+
+	// Get SDK Message Filter ID
 	const { sdkmessagefilterid, sdkmessageid } = await getSdkMessageFilterId.call(this, table, operation, itemIndex);
 
-	// Step 3: Create SDK Message Processing Step
+	// Create SDK Message Processing Step
 	const stepBody: IDataObject = {
-		name: `${webhookName} Step`,
+		name: stepName || `${table} ${operation} Webhook`,
 		mode: 1, // Async mode
 		rank: 1,
 		stage: 40, // Post-operation
@@ -103,6 +127,11 @@ export async function registerWebhook(
 		'sdkmessageid@odata.bind': `/sdkmessages(${sdkmessageid})`,
 		'sdkmessagefilterid@odata.bind': `/sdkmessagefilters(${sdkmessagefilterid})`,
 	};
+
+	// Add filtering attributes if specified (for Update operations)
+	if (filteringAttributes) {
+		stepBody.filteringattributes = filteringAttributes;
+	}
 
 	const stepResponse = await dataverseApiRequest.call(
 		this,
@@ -118,6 +147,8 @@ export async function registerWebhook(
 			serviceendpointid: serviceEndpointId,
 			sdkmessagefilterid,
 			sdkmessageid,
+			table,
+			operation,
 			step: stepResponse,
 			success: true,
 		},
@@ -126,9 +157,9 @@ export async function registerWebhook(
 }
 
 /**
- * List all registered webhooks (ServiceEndpoints)
+ * List all registered webhook endpoints (ServiceEndpoints)
  */
-export async function listWebhooks(
+export async function listEndpoints(
 	this: IExecuteFunctions,
 	itemIndex: number,
 ): Promise<INodeExecutionData[]> {
@@ -168,9 +199,9 @@ export async function listWebhooks(
 }
 
 /**
- * Delete a registered webhook
+ * Delete a webhook endpoint and all its associated steps
  */
-export async function deleteWebhook(
+export async function deleteEndpoint(
 	this: IExecuteFunctions,
 	itemIndex: number,
 ): Promise<INodeExecutionData> {
@@ -262,4 +293,75 @@ export async function listSdkMessageFilters(
 	}
 
 	return results;
+}
+
+/**
+ * List SDK Message Processing Steps for an endpoint
+ */
+export async function listEndpointSteps(
+	this: IExecuteFunctions,
+	itemIndex: number,
+): Promise<INodeExecutionData[]> {
+	const serviceEndpointId = this.getNodeParameter('serviceEndpointId', itemIndex) as string;
+	const returnAll = this.getNodeParameter('returnAll', itemIndex, false) as boolean;
+	const limit = this.getNodeParameter('limit', itemIndex, 50) as number;
+
+	const qs: IDataObject = {
+		$select: 'sdkmessageprocessingstepid,name,mode,rank,stage,asyncautodelete',
+		$expand: 'sdkmessageid($select=name),sdkmessagefilterid($select=primaryobjecttypecode)',
+		$filter: `eventhandler_serviceendpoint/serviceendpointid eq ${serviceEndpointId}`,
+	};
+
+	if (!returnAll) {
+		qs.$top = limit;
+	}
+
+	const response = (await dataverseApiRequest.call(
+		this,
+		'GET',
+		'/sdkmessageprocessingsteps',
+		undefined,
+		qs,
+		itemIndex,
+	)) as { value: IDataObject[] };
+
+	const results: INodeExecutionData[] = [];
+
+	if (response.value && response.value.length > 0) {
+		for (const item of response.value) {
+			results.push({
+				json: item,
+				pairedItem: { item: itemIndex },
+			});
+		}
+	}
+
+	return results;
+}
+
+/**
+ * Delete a specific SDK Message Processing Step
+ */
+export async function deleteStep(
+	this: IExecuteFunctions,
+	itemIndex: number,
+): Promise<INodeExecutionData> {
+	const stepId = this.getNodeParameter('stepId', itemIndex) as string;
+
+	await dataverseApiRequest.call(
+		this,
+		'DELETE',
+		`/sdkmessageprocessingsteps(${stepId})`,
+		undefined,
+		undefined,
+		itemIndex,
+	);
+
+	return {
+		json: {
+			sdkmessageprocessingstepid: stepId,
+			deleted: true,
+		},
+		pairedItem: { item: itemIndex },
+	};
 }

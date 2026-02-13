@@ -20,6 +20,10 @@ import {
 	sqlQueryFields,
 	webhookOperationDescription,
 	webhookOperationFields,
+	pluginOperationDescription,
+	pluginOperationFields,
+	webResourceOperationDescription,
+	webResourceOperationFields,
 } from './descriptions';
 import {
 	createRecord,
@@ -28,17 +32,32 @@ import {
 	updateRecord,
 	deleteRecord,
 } from './operations/RecordOperations';
+import {
+	uploadPluginAssembly,
+	registerPluginStep,
+	listPluginAssemblies,
+	deletePluginAssembly,
+} from './operations/PluginOperations';
+import {
+	uploadWebResource,
+	updateWebResource,
+	listWebResources,
+	deleteWebResource,
+} from './operations/WebResourceOperations';
 import { executeSqlQuery } from './operations/SqlOperations';
 import {
-	registerWebhook,
-	listWebhooks,
-	deleteWebhook,
+	registerEndpoint,
+	registerWebhookStep,
+	listEndpoints,
+	deleteEndpoint,
+	listEndpointSteps,
+	deleteStep,
 	listSdkMessageFilters,
 } from './operations/WebhookOperations';
 
 export type RecordIdType = 'id' | 'alternateKey';
 export type QueryType = 'odata' | 'fetchxml';
-export type Operation = 'create' | 'delete' | 'get' | 'getMany' | 'update' | 'executeQuery' | 'registerWebhook' | 'listWebhooks' | 'deleteWebhook' | 'listSdkMessageFilters';
+export type Operation = 'create' | 'delete' | 'get' | 'getMany' | 'update' | 'executeQuery' | 'registerEndpoint' | 'registerWebhookStep' | 'listEndpoints' | 'deleteEndpoint' | 'listEndpointSteps' | 'deleteStep' | 'listSdkMessageFilters' | 'uploadPluginAssembly' | 'registerPluginStep' | 'listPluginAssemblies' | 'deletePluginAssembly' | 'uploadWebResource' | 'updateWebResource' | 'listWebResources' | 'deleteWebResource';
 
 export class Dataverse implements INodeType {
 	description: INodeTypeDescription = {
@@ -71,6 +90,10 @@ export class Dataverse implements INodeType {
 		properties: [
 			resourceDescription,
 			operationDescription,
+			pluginOperationDescription,
+			...pluginOperationFields,
+			webResourceOperationDescription,
+			...webResourceOperationFields,
 			webhookOperationDescription,
 			...webhookOperationFields,
 			tableDescription,
@@ -155,18 +178,33 @@ export class Dataverse implements INodeType {
 					let result: INodeExecutionData | INodeExecutionData[];
 
 					switch (operation) {
-						case 'registerWebhook': {
-							result = await registerWebhook.call(this, i);
+						case 'registerEndpoint': {
+							result = await registerEndpoint.call(this, i);
 							break;
 						}
 
-						case 'listWebhooks': {
-							result = await listWebhooks.call(this, i);
+						case 'registerWebhookStep': {
+							result = await registerWebhookStep.call(this, i);
 							break;
 						}
 
-						case 'deleteWebhook': {
-							result = await deleteWebhook.call(this, i);
+						case 'listEndpoints': {
+							result = await listEndpoints.call(this, i);
+							break;
+						}
+
+						case 'deleteEndpoint': {
+							result = await deleteEndpoint.call(this, i);
+							break;
+						}
+
+						case 'listEndpointSteps': {
+							result = await listEndpointSteps.call(this, i);
+							break;
+						}
+
+						case 'deleteStep': {
+							result = await deleteStep.call(this, i);
 							break;
 						}
 
@@ -179,6 +217,80 @@ export class Dataverse implements INodeType {
 							throw new NodeOperationError(
 								this.getNode(),
 								`The webhook operation "${operation}" is not supported`,
+							);
+					}
+
+					if (Array.isArray(result)) {
+						returnData.push(...result);
+					} else {
+						returnData.push(result);
+					}
+				} else if (resource === 'plugin') {
+					// Handle Plugin operations
+					let result: INodeExecutionData | INodeExecutionData[];
+
+					switch (operation) {
+						case 'uploadPluginAssembly': {
+							result = await uploadPluginAssembly.call(this, i);
+							break;
+						}
+
+						case 'registerPluginStep': {
+							result = await registerPluginStep.call(this, i);
+							break;
+						}
+
+						case 'listPluginAssemblies': {
+							result = await listPluginAssemblies.call(this, i);
+							break;
+						}
+
+						case 'deletePluginAssembly': {
+							result = await deletePluginAssembly.call(this, i);
+							break;
+						}
+
+						default:
+							throw new NodeOperationError(
+								this.getNode(),
+								`The plugin operation "${operation}" is not supported`,
+							);
+					}
+
+					if (Array.isArray(result)) {
+						returnData.push(...result);
+					} else {
+						returnData.push(result);
+					}
+				} else if (resource === 'webresource') {
+					// Handle Web Resource operations
+					let result: INodeExecutionData | INodeExecutionData[];
+
+					switch (operation) {
+						case 'uploadWebResource': {
+							result = await uploadWebResource.call(this, i);
+							break;
+						}
+
+						case 'updateWebResource': {
+							result = await updateWebResource.call(this, i);
+							break;
+						}
+
+						case 'listWebResources': {
+							result = await listWebResources.call(this, i);
+							break;
+						}
+
+						case 'deleteWebResource': {
+							result = await deleteWebResource.call(this, i);
+							break;
+						}
+
+						default:
+							throw new NodeOperationError(
+								this.getNode(),
+								`The web resource operation "${operation}" is not supported`,
 							);
 					}
 

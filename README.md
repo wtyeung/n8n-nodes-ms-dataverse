@@ -43,6 +43,51 @@ This node supports the following operations on Dataverse records:
   - Read-only access (no INSERT, UPDATE, DELETE)
   - Requires TDS endpoint to be enabled in your Dataverse environment
 
+### Webhook Operations
+
+Manage webhook endpoints and steps for real-time event notifications from Dataverse.
+
+- **Register Endpoint**: Create a reusable webhook URL (ServiceEndpoint)
+- **Register Step**: Link an endpoint to a specific table and operation (SDK Message Processing Step)
+- **List Endpoints**: List all registered webhook endpoints
+- **List Endpoint Steps**: List steps associated with an endpoint
+- **Delete Endpoint**: Delete a webhook endpoint and all its associated steps
+- **Delete Step**: Delete a specific SDK message processing step
+- **List SDK Message Filters**: List available message filters for a table
+
+**Two-stage registration:**
+1. First, register a reusable endpoint (webhook URL)
+2. Then, register one or more steps to link that endpoint to table events (Create, Update, Delete, Assign, SetState)
+
+For Update operations, you can specify **Filtering Attributes** — a comma-separated list of field names that trigger the webhook (e.g., `name,emailaddress1`).
+
+### Plugin Operations
+
+Manage DLL plugin assemblies and their registration steps.
+
+- **Upload Assembly**: Upload a DLL plugin assembly to Dataverse
+- **Register Step**: Register a plugin step for a table/operation
+- **List Assemblies**: List all plugin assemblies
+- **Delete Assembly**: Delete a plugin assembly
+
+Plugin steps support:
+- **Event Operations**: Create, Update, Delete
+- **Execution Stages**: Pre-Validation, Pre-Operation, Post-Operation
+- **Filtering Attributes**: Specify which fields trigger the plugin (Update only)
+
+### Web Resource Operations
+
+Upload and manage web resources (JavaScript, CSS, HTML, images, etc.).
+
+- **Upload**: Create a new web resource
+- **Update**: Update content of an existing web resource
+- **List**: List web resources with optional type filter
+- **Delete**: Delete a web resource
+
+Supported web resource types: HTML, CSS, JavaScript, XML, PNG, JPG, GIF, XAP (Silverlight), XSL, ICO, SVG, RESX.
+
+For text-based types (JS, CSS, HTML, XML), provide raw code — it will be base64-encoded automatically. For binary types (images), provide pre-encoded base64 content.
+
 ### Features
 
 - **Dynamic Table Discovery**: Automatically loads available tables from your Dataverse environment using the OData metadata endpoint
