@@ -14,6 +14,10 @@ export const resourceDescription: INodeProperties = {
 			name: 'SQL Query via TDS (Read-Only)',
 			value: 'sql',
 		},
+		{
+			name: 'Webhook',
+			value: 'webhook',
+		},
 	],
 	default: 'record',
 };
@@ -188,7 +192,7 @@ export const tableDescription: INodeProperties = {
 	description: 'Optional: Select a table to view its field schema below',
 	displayOptions: {
 		show: {
-			resource: ['record', 'sql'],
+			resource: ['record', 'sql', 'webhook'],
 		},
 	},
 	modes: [
@@ -245,7 +249,7 @@ export const fieldSchemaSelector: INodeProperties = {
 	},
 	displayOptions: {
 		show: {
-			resource: ['record', 'sql'],
+			resource: ['record', 'sql', 'webhook'],
 		},
 	},
 	default: '',
@@ -534,7 +538,160 @@ export const getManyOperationFields: INodeProperties[] = [
 	},
 ];
 
-// SQL Query Operation
+export const webhookOperationDescription: INodeProperties = {
+	displayName: 'Operation',
+	name: 'operation',
+	type: 'options',
+	noDataExpression: true,
+	displayOptions: {
+		show: {
+			resource: ['webhook'],
+		},
+	},
+	options: [
+		{
+			name: 'Register',
+			value: 'registerWebhook',
+			description: 'Register a new webhook for a table',
+			action: 'Register a webhook',
+		},
+		{
+			name: 'List',
+			value: 'listWebhooks',
+			description: 'List all registered webhooks',
+			action: 'List webhooks',
+		},
+		{
+			name: 'Delete',
+			value: 'deleteWebhook',
+			description: 'Delete a registered webhook',
+			action: 'Delete a webhook',
+		},
+		{
+			name: 'List SDK Message Filters',
+			value: 'listSdkMessageFilters',
+			description: 'List SDK message filters for a table',
+			action: 'List SDK message filters',
+		},
+	],
+	default: 'registerWebhook',
+};
+
+export const webhookOperationFields: INodeProperties[] = [
+	// Register Webhook fields
+	{
+		displayName: 'Webhook Name',
+		name: 'webhookName',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['webhook'],
+				operation: ['registerWebhook'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'Name for the webhook registration',
+		placeholder: 'e.g. Account Create Webhook',
+	},
+	{
+		displayName: 'Webhook URL',
+		name: 'webhookUrl',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['webhook'],
+				operation: ['registerWebhook'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'URL endpoint to receive webhook notifications',
+		placeholder: 'e.g. https://your-app.com/webhook/dataverse',
+	},
+	{
+		displayName: 'Operation',
+		name: 'webhookOperation',
+		type: 'options',
+		displayOptions: {
+			show: {
+				resource: ['webhook'],
+				operation: ['registerWebhook'],
+			},
+		},
+		options: [
+			{ name: 'Create', value: 'Create' },
+			{ name: 'Update', value: 'Update' },
+			{ name: 'Delete', value: 'Delete' },
+			{ name: 'Assign', value: 'Assign' },
+			{ name: 'SetState', value: 'SetState' },
+		],
+		default: 'Create',
+		description: 'Dataverse operation to trigger the webhook',
+	},
+	{
+		displayName: 'Auth Header',
+		name: 'authHeader',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['webhook'],
+				operation: ['registerWebhook'],
+			},
+		},
+		default: '',
+		description: 'Custom authorization header value (e.g., x-api-key:your-key)',
+		placeholder: 'e.g. x-api-key:abc123',
+	},
+	// List Webhooks fields
+	{
+		displayName: 'Return All',
+		name: 'returnAll',
+		type: 'boolean',
+		displayOptions: {
+			show: {
+				resource: ['webhook'],
+				operation: ['listWebhooks'],
+			},
+		},
+		default: false,
+		description: 'Whether to return all results or only up to a given limit',
+	},
+	{
+		displayName: 'Limit',
+		name: 'limit',
+		type: 'number',
+		displayOptions: {
+			show: {
+				resource: ['webhook'],
+				operation: ['listWebhooks'],
+				returnAll: [false],
+			},
+		},
+		typeOptions: {
+			minValue: 1,
+			maxValue: 500,
+		},
+		default: 50,
+		description: 'Max number of results to return',
+	},
+	// Delete Webhook fields
+	{
+		displayName: 'Service Endpoint ID',
+		name: 'serviceEndpointId',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['webhook'],
+				operation: ['deleteWebhook'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'ID of the webhook service endpoint to delete',
+		placeholder: 'e.g. 00000000-0000-0000-0000-000000000000',
+	},
+];
 export const sqlOperationDescription: INodeProperties = {
 	displayName: 'Operation',
 	name: 'operation',

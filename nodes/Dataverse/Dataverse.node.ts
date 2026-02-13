@@ -17,8 +17,9 @@ import {
 	updateOperationFields,
 	getManyOperationFields,
 	optionsDescription,
-	sqlOperationDescription,
 	sqlQueryFields,
+	webhookOperationDescription,
+	webhookOperationFields,
 } from './descriptions';
 import {
 	createRecord,
@@ -28,7 +29,16 @@ import {
 	deleteRecord,
 } from './operations/RecordOperations';
 import { executeSqlQuery } from './operations/SqlOperations';
-import type { Operation } from './types';
+import {
+	registerWebhook,
+	listWebhooks,
+	deleteWebhook,
+	listSdkMessageFilters,
+} from './operations/WebhookOperations';
+
+export type RecordIdType = 'id' | 'alternateKey';
+export type QueryType = 'odata' | 'fetchxml';
+export type Operation = 'create' | 'delete' | 'get' | 'getMany' | 'update' | 'executeQuery' | 'registerWebhook' | 'listWebhooks' | 'deleteWebhook' | 'listSdkMessageFilters';
 
 export class Dataverse implements INodeType {
 	description: INodeTypeDescription = {
@@ -61,7 +71,8 @@ export class Dataverse implements INodeType {
 		properties: [
 			resourceDescription,
 			operationDescription,
-			sqlOperationDescription,
+			webhookOperationDescription,
+			...webhookOperationFields,
 			tableDescription,
 			fieldSchemaSelector,
 			...createOperationFields,
@@ -131,6 +142,43 @@ export class Dataverse implements INodeType {
 							throw new NodeOperationError(
 								this.getNode(),
 								`The operation "${operation}" is not supported`,
+							);
+					}
+
+					if (Array.isArray(result)) {
+						returnData.push(...result);
+					} else {
+						returnData.push(result);
+					}
+				} else if (resource === 'webhook') {
+					// Handle Webhook operations
+					let result: INodeExecutionData | INodeExecutionData[];
+
+					switch (operation) {
+						case 'registerWebhook': {
+							result = await registerWebhook.call(this, i);
+							break;
+						}
+
+						case 'listWebhooks': {
+							result = await listWebhooks.call(this, i);
+							break;
+						}
+
+						case 'deleteWebhook': {
+							result = await deleteWebhook.call(this, i);
+							break;
+						}
+
+						case 'listSdkMessageFilters': {
+							result = await listSdkMessageFilters.call(this, i);
+							break;
+						}
+
+						default:
+							throw new NodeOperationError(
+								this.getNode(),
+								`The webhook operation "${operation}" is not supported`,
 							);
 					}
 

@@ -29,4 +29,4 @@ export interface AlternateKey {
 
 export type RecordIdType = 'id' | 'alternateKey';
 export type QueryType = 'odata' | 'fetchxml';
-export type Operation = 'create' | 'delete' | 'get' | 'getMany' | 'update';
+export type Operation = 'create' | 'delete' | 'get' | 'getMany' | 'update' | 'executeQuery' | 'registerWebhook' | 'listWebhooks' | 'deleteWebhook' | 'listSdkMessageFilters' | 'getWebhook' | 'updateWebhook';
