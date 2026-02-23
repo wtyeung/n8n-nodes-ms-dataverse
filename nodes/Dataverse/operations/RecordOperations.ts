@@ -331,20 +331,30 @@ export async function updateRecord(
 	table: string,
 	itemIndex: number,
 ): Promise<IDataObject> {
-	const recordId = this.getNodeParameter('recordId', itemIndex) as string;
+	const recordIdType = this.getNodeParameter('recordIdType', itemIndex) as string;
 	const updateFields = this.getNodeParameter('updateFields.field', itemIndex, []) as FieldValue[];
 	const body = fieldsToObject(updateFields);
+
+	let recordIdentifier = '';
+
+	if (recordIdType === 'alternateKey') {
+		const alternateKeys = this.getNodeParameter('alternateKeys.key', itemIndex, []) as AlternateKey[];
+		recordIdentifier = buildRecordIdentifier('alternateKey', undefined, alternateKeys);
+	} else {
+		const recordId = this.getNodeParameter('recordId', itemIndex) as string;
+		recordIdentifier = buildRecordIdentifier('id', recordId);
+	}
 
 	const response = await dataverseApiRequest.call(
 		this,
 		'PATCH',
-		`/${table}(${recordId})`,
+		`/${table}(${recordIdentifier})`,
 		body,
 		undefined,
 		itemIndex,
 	);
 
-	return (response as IDataObject) || { success: true, id: recordId };
+	return (response as IDataObject) || { success: true, id: recordIdentifier };
 }
 
 /**
@@ -355,9 +365,19 @@ export async function deleteRecord(
 	table: string,
 	itemIndex: number,
 ): Promise<IDataObject> {
-	const recordId = this.getNodeParameter('recordId', itemIndex) as string;
+	const recordIdType = this.getNodeParameter('recordIdType', itemIndex) as string;
 
-	await dataverseApiRequest.call(this, 'DELETE', `/${table}(${recordId})`, undefined, undefined, itemIndex);
+	let recordIdentifier = '';
 
-	return { success: true, id: recordId };
+	if (recordIdType === 'alternateKey') {
+		const alternateKeys = this.getNodeParameter('alternateKeys.key', itemIndex, []) as AlternateKey[];
+		recordIdentifier = buildRecordIdentifier('alternateKey', undefined, alternateKeys);
+	} else {
+		const recordId = this.getNodeParameter('recordId', itemIndex) as string;
+		recordIdentifier = buildRecordIdentifier('id', recordId);
+	}
+
+	await dataverseApiRequest.call(this, 'DELETE', `/${table}(${recordIdentifier})`, undefined, undefined, itemIndex);
+
+	return { success: true, id: recordIdentifier };
 }

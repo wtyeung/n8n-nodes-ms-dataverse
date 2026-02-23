@@ -315,7 +315,7 @@ export const getOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['get'],
+				operation: ['get', 'update', 'delete'],
 			},
 		},
 		options: [
@@ -361,7 +361,7 @@ export const getOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['get'],
+				operation: ['get', 'update', 'delete'],
 				recordIdType: ['alternateKey'],
 			},
 		},
