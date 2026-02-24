@@ -18,6 +18,7 @@ import {
 	getManyOperationFields,
 	optionsDescription,
 	sqlQueryFields,
+	sqlOperationDescription,
 	webhookOperationDescription,
 	webhookOperationFields,
 	pluginOperationDescription,
@@ -90,6 +91,7 @@ export class Dataverse implements INodeType {
 		properties: [
 			resourceDescription,
 			operationDescription,
+			sqlOperationDescription,
 			pluginOperationDescription,
 			...pluginOperationFields,
 			webResourceOperationDescription,
