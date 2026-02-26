@@ -104,14 +104,42 @@ export async function dataverseApiRequest(
 			);
 		}
 	} catch (error) {
-		// Add more context to the error
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		const errorDetails = error instanceof Error && 'response' in error 
-			? ` Response: ${JSON.stringify((error as {response?: {data?: unknown}}).response?.data || {})}`
-			: '';
+		// Extract detailed error information from Dataverse API response
+		let errorMessage = error instanceof Error ? error.message : String(error);
+		let detailedError = '';
+
+		if (error instanceof Error && 'cause' in error) {
+			const cause = error.cause as any;
+			if (cause?.error) {
+				// Dataverse error format: { error: { code: "...", message: "..." } }
+				const dataverseError = cause.error;
+				if (dataverseError.message) {
+					detailedError = ` Dataverse error: ${dataverseError.message}`;
+					if (dataverseError.code) {
+						detailedError += ` (Code: ${dataverseError.code})`;
+					}
+				}
+			} else if (cause?.response?.data) {
+				detailedError = ` Response: ${JSON.stringify(cause.response.data)}`;
+			}
+		} else if (error instanceof Error && 'response' in error) {
+			const response = (error as any).response;
+			if (response?.data?.error) {
+				const dataverseError = response.data.error;
+				if (dataverseError.message) {
+					detailedError = ` Dataverse error: ${dataverseError.message}`;
+					if (dataverseError.code) {
+						detailedError += ` (Code: ${dataverseError.code})`;
+					}
+				}
+			} else if (response?.data) {
+				detailedError = ` Response: ${JSON.stringify(response.data)}`;
+			}
+		}
+
 		throw new NodeOperationError(
 			this.getNode(),
-			`Dataverse API request failed: ${errorMessage}. URL: ${options.url}${errorDetails}`,
+			`Dataverse API request failed: ${errorMessage}. URL: ${options.url}${detailedError}`,
 		);
 	}
 }
