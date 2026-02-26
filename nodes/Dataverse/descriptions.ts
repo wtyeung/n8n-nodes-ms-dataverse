@@ -421,10 +421,12 @@ export const getOperationFields: INodeProperties[] = [
 					{
 						displayName: 'Key Name',
 						name: 'name',
-						type: 'string',
+						type: 'options',
+						typeOptions: {
+							loadOptionsMethod: 'getAlternateKeyFields',
+						},
 						default: '',
-						description: 'Name of the alternate key',
-						placeholder: 'e.g. emailaddress1',
+						description: 'Name of the alternate key field. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 					},
 					{
 						displayName: 'Key Value',
