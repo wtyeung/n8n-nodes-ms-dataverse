@@ -105,42 +105,57 @@ export async function dataverseApiRequest(
 		}
 	} catch (error) {
 		// Extract detailed error information from Dataverse API response
-		let errorMessage = error instanceof Error ? error.message : String(error);
-		let detailedError = '';
-
-		if (error instanceof Error && 'cause' in error) {
-			const cause = error.cause as any;
-			if (cause?.error) {
-				// Dataverse error format: { error: { code: "...", message: "..." } }
-				const dataverseError = cause.error;
-				if (dataverseError.message) {
-					detailedError = ` Dataverse error: ${dataverseError.message}`;
-					if (dataverseError.code) {
-						detailedError += ` (Code: ${dataverseError.code})`;
-					}
-				}
-			} else if (cause?.response?.data) {
-				detailedError = ` Response: ${JSON.stringify(cause.response.data)}`;
-			}
-		} else if (error instanceof Error && 'response' in error) {
-			const response = (error as any).response;
-			if (response?.data?.error) {
-				const dataverseError = response.data.error;
-				if (dataverseError.message) {
-					detailedError = ` Dataverse error: ${dataverseError.message}`;
-					if (dataverseError.code) {
-						detailedError += ` (Code: ${dataverseError.code})`;
-					}
-				}
-			} else if (response?.data) {
-				detailedError = ` Response: ${JSON.stringify(response.data)}`;
-			}
+		let errorMessage = 'Unknown error';
+		let errorCode = '';
+		let httpStatus = '';
+		
+		// Try to extract error from various possible locations in the error object
+		const errorObj = error as any;
+		
+		// Check for Dataverse error in response body
+		let dataverseError = null;
+		if (errorObj?.cause?.response?.body?.error) {
+			dataverseError = errorObj.cause.response.body.error;
+		} else if (errorObj?.response?.data?.error) {
+			dataverseError = errorObj.response.data.error;
+		} else if (errorObj?.cause?.error) {
+			dataverseError = errorObj.cause.error;
+		} else if (errorObj?.error) {
+			dataverseError = errorObj.error;
 		}
-
-		throw new NodeOperationError(
-			this.getNode(),
-			`Dataverse API request failed: ${errorMessage}. URL: ${options.url}${detailedError}`,
-		);
+		
+		// Extract error details from Dataverse error object
+		if (dataverseError) {
+			if (dataverseError.message) {
+				errorMessage = dataverseError.message;
+			}
+			if (dataverseError.code) {
+				errorCode = dataverseError.code;
+			}
+		} else if (error instanceof Error) {
+			errorMessage = error.message;
+		}
+		
+		// Get HTTP status code
+		if (errorObj?.cause?.response?.statusCode) {
+			httpStatus = errorObj.cause.response.statusCode;
+		} else if (errorObj?.response?.status) {
+			httpStatus = errorObj.response.status;
+		} else if (errorObj?.statusCode) {
+			httpStatus = errorObj.statusCode;
+		}
+		
+		// Build comprehensive error message
+		let fullErrorMessage = `Dataverse API request failed: ${errorMessage}`;
+		if (httpStatus) {
+			fullErrorMessage += ` (HTTP ${httpStatus})`;
+		}
+		if (errorCode) {
+			fullErrorMessage += ` [Error Code: ${errorCode}]`;
+		}
+		fullErrorMessage += `\nURL: ${options.url}`;
+		
+		throw new NodeOperationError(this.getNode(), fullErrorMessage);
 	}
 }
 
