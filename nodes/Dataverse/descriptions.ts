@@ -320,10 +320,12 @@ export const createOperationFields: INodeProperties[] = [
 					{
 						displayName: 'Field Name',
 						name: 'name',
-						type: 'string',
+						type: 'options',
+						typeOptions: {
+							loadOptionsMethod: 'getTableFieldNames',
+						},
 						default: '',
-						description: 'Name of the field to set',
-						placeholder: 'e.g. name',
+						description: 'Name of the field to set. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 					},
 					{
 						displayName: 'Field Value',
@@ -500,10 +502,12 @@ export const upsertOperationFields: INodeProperties[] = [
 					{
 						displayName: 'Field Name',
 						name: 'name',
-						type: 'string',
+						type: 'options',
+						typeOptions: {
+							loadOptionsMethod: 'getTableFieldNames',
+						},
 						default: '',
-						description: 'Name of the field to set',
-						placeholder: 'e.g. name',
+						description: 'Name of the field to set. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 					},
 					{
 						displayName: 'Field Value',
@@ -582,10 +586,12 @@ export const updateOperationFields: INodeProperties[] = [
 					{
 						displayName: 'Field Name',
 						name: 'name',
-						type: 'string',
+						type: 'options',
+						typeOptions: {
+							loadOptionsMethod: 'getTableFieldNames',
+						},
 						default: '',
-						description: 'Name of the field to update',
-						placeholder: 'e.g. name',
+						description: 'Name of the field to update. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 					},
 					{
 						displayName: 'Field Value',

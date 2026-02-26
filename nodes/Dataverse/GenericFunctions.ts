@@ -539,6 +539,100 @@ export async function getTableFieldsForDisplay(
 }
 
 /**
+ * Get table field names for field collection inputs
+ */
+export async function getTableFieldNames(
+	this: ILoadOptionsFunctions,
+): Promise<INodePropertyOptions[]> {
+	const returnData: INodePropertyOptions[] = [];
+
+	try {
+		const table = this.getNodeParameter('table', 0) as { mode: string; value: string };
+		const tableValue = table?.value;
+
+		if (!tableValue) {
+			return [
+				{
+					name: 'Please select a table first',
+					value: '',
+				},
+			];
+		}
+
+		// Get the logical name from entity set name
+		let logicalName = tableValue;
+		try {
+			const entityResponse = (await dataverseApiRequest.call(
+				this,
+				'GET',
+				'/EntityDefinitions',
+				undefined,
+				{
+					$select: 'LogicalName,EntitySetName',
+					$filter: `EntitySetName eq '${tableValue}'`,
+				},
+			)) as DataverseApiResponse;
+			
+			if (entityResponse.value && entityResponse.value.length > 0) {
+				logicalName = (entityResponse.value[0] as { LogicalName: string }).LogicalName;
+			}
+		} catch {
+			// Continue with table name as logical name
+		}
+
+		// Fetch attributes
+		const response = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			`/EntityDefinitions(LogicalName='${logicalName}')/Attributes`,
+			undefined,
+			{
+				$select: 'LogicalName,DisplayName,AttributeType',
+				$filter: 'IsValidForRead eq true',
+				$orderby: 'LogicalName',
+			},
+		)) as DataverseApiResponse;
+
+		const attributes = (response.value || []) as Array<{
+			LogicalName: string;
+			DisplayName?: { UserLocalizedLabel?: { Label?: string } };
+			AttributeType?: string;
+		}>;
+
+		if (attributes.length === 0) {
+			return [
+				{
+					name: 'No fields found',
+					value: '',
+				},
+			];
+		}
+
+		for (const attr of attributes) {
+			const displayName = attr.DisplayName?.UserLocalizedLabel?.Label || attr.LogicalName;
+			const logicalName = attr.LogicalName;
+			const type = attr.AttributeType || 'Unknown';
+			const name = `${displayName} (${logicalName}) - ${type}`;
+
+			returnData.push({
+				name,
+				value: logicalName,
+			});
+		}
+
+		return returnData;
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		return [
+			{
+				name: `Error loading fields: ${errorMessage}`,
+				value: '',
+			},
+		];
+	}
+}
+
+/**
  * Build record identifier for API calls (ID or alternate keys)
  */
 export function buildRecordIdentifier(

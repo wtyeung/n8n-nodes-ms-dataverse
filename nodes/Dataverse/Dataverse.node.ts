@@ -6,7 +6,7 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import { searchTables, getTableFieldsForDisplay } from './GenericFunctions';
+import { searchTables, getTableFieldsForDisplay, getTableFieldNames } from './GenericFunctions';
 import {
 	resourceDescription,
 	operationDescription,
@@ -118,6 +118,7 @@ export class Dataverse implements INodeType {
 		},
 		loadOptions: {
 			getTableFieldsForDisplay,
+			getTableFieldNames,
 		},
 	};
 
