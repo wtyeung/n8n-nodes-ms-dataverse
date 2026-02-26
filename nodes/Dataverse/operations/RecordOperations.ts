@@ -17,8 +17,16 @@ export async function createRecord(
 	table: string,
 	itemIndex: number,
 ): Promise<IDataObject> {
-	const fields = this.getNodeParameter('fields.field', itemIndex, []) as FieldValue[];
-	const body = fieldsToObject(fields);
+	const fieldsInputMode = this.getNodeParameter('fieldsInputMode', itemIndex, 'collection') as string;
+	let body: IDataObject;
+
+	if (fieldsInputMode === 'json') {
+		const fieldsJson = this.getNodeParameter('fieldsJson', itemIndex, '{}') as string;
+		body = typeof fieldsJson === 'string' ? JSON.parse(fieldsJson) : fieldsJson;
+	} else {
+		const fields = this.getNodeParameter('fields.field', itemIndex, []) as FieldValue[];
+		body = fieldsToObject(fields);
+	}
 
 	return await dataverseApiRequest.call(this, 'POST', `/${table}`, body, undefined, itemIndex);
 }
@@ -332,8 +340,16 @@ export async function updateRecord(
 	itemIndex: number,
 ): Promise<IDataObject> {
 	const recordIdType = this.getNodeParameter('recordIdType', itemIndex) as string;
-	const updateFields = this.getNodeParameter('updateFields.field', itemIndex, []) as FieldValue[];
-	const body = fieldsToObject(updateFields);
+	const fieldsInputMode = this.getNodeParameter('fieldsInputMode', itemIndex, 'collection') as string;
+	let body: IDataObject;
+
+	if (fieldsInputMode === 'json') {
+		const updateFieldsJson = this.getNodeParameter('updateFieldsJson', itemIndex, '{}') as string;
+		body = typeof updateFieldsJson === 'string' ? JSON.parse(updateFieldsJson) : updateFieldsJson;
+	} else {
+		const updateFields = this.getNodeParameter('updateFields.field', itemIndex, []) as FieldValue[];
+		body = fieldsToObject(updateFields);
+	}
 
 	let recordIdentifier = '';
 
@@ -380,4 +396,47 @@ export async function deleteRecord(
 	await dataverseApiRequest.call(this, 'DELETE', `/${table}(${recordIdentifier})`, undefined, undefined, itemIndex);
 
 	return { success: true, id: recordIdentifier };
+}
+
+/**
+ * Upsert a record in Dataverse (create if not exists, update if exists)
+ * Requires alternate key to identify the record
+ */
+export async function upsertRecord(
+	this: IExecuteFunctions,
+	table: string,
+	itemIndex: number,
+): Promise<IDataObject> {
+	const recordIdType = this.getNodeParameter('recordIdType', itemIndex) as string;
+	const fieldsInputMode = this.getNodeParameter('fieldsInputMode', itemIndex, 'collection') as string;
+	let body: IDataObject;
+
+	if (fieldsInputMode === 'json') {
+		const upsertFieldsJson = this.getNodeParameter('upsertFieldsJson', itemIndex, '{}') as string;
+		body = typeof upsertFieldsJson === 'string' ? JSON.parse(upsertFieldsJson) : upsertFieldsJson;
+	} else {
+		const upsertFields = this.getNodeParameter('upsertFields.field', itemIndex, []) as FieldValue[];
+		body = fieldsToObject(upsertFields);
+	}
+
+	let recordIdentifier = '';
+
+	if (recordIdType === 'alternateKey') {
+		const alternateKeys = this.getNodeParameter('alternateKeys.key', itemIndex, []) as AlternateKey[];
+		recordIdentifier = buildRecordIdentifier('alternateKey', undefined, alternateKeys);
+	} else {
+		const recordId = this.getNodeParameter('recordId', itemIndex) as string;
+		recordIdentifier = buildRecordIdentifier('id', recordId);
+	}
+
+	const response = await dataverseApiRequest.call(
+		this,
+		'PATCH',
+		`/${table}(${recordIdentifier})`,
+		body,
+		undefined,
+		itemIndex,
+	);
+
+	return (response as IDataObject) || { success: true, id: recordIdentifier };
 }

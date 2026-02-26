@@ -71,6 +71,12 @@ export const operationDescription: INodeProperties = {
 			description: 'Update a record',
 			action: 'Update a record',
 		},
+		{
+			name: 'Upsert',
+			value: 'upsert',
+			description: 'Create a new record or update if it exists (based on alternate key)',
+			action: 'Upsert a record',
+		},
 	],
 	default: 'get',
 };
@@ -267,6 +273,30 @@ export const fieldSchemaSelector: INodeProperties = {
 
 export const createOperationFields: INodeProperties[] = [
 	{
+		displayName: 'Fields Input Mode',
+		name: 'fieldsInputMode',
+		type: 'options',
+		options: [
+			{
+				name: 'Field Collection',
+				value: 'collection',
+				description: 'Add fields one by one',
+			},
+			{
+				name: 'JSON',
+				value: 'json',
+				description: 'Provide fields as JSON object',
+			},
+		],
+		default: 'collection',
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['create'],
+			},
+		},
+	},
+	{
 		displayName: 'Fields',
 		name: 'fields',
 		type: 'fixedCollection',
@@ -279,6 +309,7 @@ export const createOperationFields: INodeProperties[] = [
 			show: {
 				resource: ['record'],
 				operation: ['create'],
+				fieldsInputMode: ['collection'],
 			},
 		},
 		options: [
@@ -305,6 +336,21 @@ export const createOperationFields: INodeProperties[] = [
 			},
 		],
 	},
+	{
+		displayName: 'Fields (JSON)',
+		name: 'fieldsJson',
+		type: 'json',
+		default: '{}',
+		description: 'Provide fields as a JSON object with field names as keys',
+		placeholder: '{"name": "Test", "email": "test@example.com"}',
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['create'],
+				fieldsInputMode: ['json'],
+			},
+		},
+	},
 ];
 
 export const getOperationFields: INodeProperties[] = [
@@ -315,7 +361,7 @@ export const getOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['get', 'update', 'delete'],
+				operation: ['get', 'update', 'delete', 'upsert'],
 			},
 		},
 		options: [
@@ -361,7 +407,7 @@ export const getOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['get', 'update', 'delete'],
+				operation: ['get', 'update', 'delete', 'upsert'],
 				recordIdType: ['alternateKey'],
 			},
 		},
@@ -405,7 +451,113 @@ export const getOperationFields: INodeProperties[] = [
 	},
 ];
 
+export const upsertOperationFields: INodeProperties[] = [
+	{
+		displayName: 'Fields Input Mode',
+		name: 'fieldsInputMode',
+		type: 'options',
+		options: [
+			{
+				name: 'Field Collection',
+				value: 'collection',
+				description: 'Add fields one by one',
+			},
+			{
+				name: 'JSON',
+				value: 'json',
+				description: 'Provide fields as JSON object',
+			},
+		],
+		default: 'collection',
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['upsert'],
+			},
+		},
+	},
+	{
+		displayName: 'Upsert Fields',
+		name: 'upsertFields',
+		type: 'fixedCollection',
+		typeOptions: {
+			multipleValues: true,
+		},
+		placeholder: 'Add Field',
+		default: {},
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['upsert'],
+				fieldsInputMode: ['collection'],
+			},
+		},
+		options: [
+			{
+				displayName: 'Field',
+				name: 'field',
+				values: [
+					{
+						displayName: 'Field Name',
+						name: 'name',
+						type: 'string',
+						default: '',
+						description: 'Name of the field to set',
+						placeholder: 'e.g. name',
+					},
+					{
+						displayName: 'Field Value',
+						name: 'value',
+						type: 'string',
+						default: '',
+						description: 'Value for the field',
+					},
+				],
+			},
+		],
+	},
+	{
+		displayName: 'Upsert Fields (JSON)',
+		name: 'upsertFieldsJson',
+		type: 'json',
+		default: '{}',
+		description: 'Provide fields as a JSON object with field names as keys',
+		placeholder: '{"name": "Test", "email": "test@example.com"}',
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['upsert'],
+				fieldsInputMode: ['json'],
+			},
+		},
+	},
+];
+
 export const updateOperationFields: INodeProperties[] = [
+	{
+		displayName: 'Fields Input Mode',
+		name: 'fieldsInputMode',
+		type: 'options',
+		options: [
+			{
+				name: 'Field Collection',
+				value: 'collection',
+				description: 'Add fields one by one',
+			},
+			{
+				name: 'JSON',
+				value: 'json',
+				description: 'Provide fields as JSON object',
+			},
+		],
+		default: 'collection',
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['update'],
+			},
+		},
+	},
 	{
 		displayName: 'Update Fields',
 		name: 'updateFields',
@@ -419,6 +571,7 @@ export const updateOperationFields: INodeProperties[] = [
 			show: {
 				resource: ['record'],
 				operation: ['update'],
+				fieldsInputMode: ['collection'],
 			},
 		},
 		options: [
@@ -444,6 +597,21 @@ export const updateOperationFields: INodeProperties[] = [
 				],
 			},
 		],
+	},
+	{
+		displayName: 'Update Fields (JSON)',
+		name: 'updateFieldsJson',
+		type: 'json',
+		default: '{}',
+		description: 'Provide fields to update as a JSON object with field names as keys',
+		placeholder: '{"name": "Updated Name", "email": "updated@example.com"}',
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['update'],
+				fieldsInputMode: ['json'],
+			},
+		},
 	},
 ];
 

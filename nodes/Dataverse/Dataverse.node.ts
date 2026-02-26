@@ -16,6 +16,7 @@ import {
 	getOperationFields,
 	updateOperationFields,
 	getManyOperationFields,
+	upsertOperationFields,
 	optionsDescription,
 	sqlQueryFields,
 	sqlOperationDescription,
@@ -31,6 +32,7 @@ import {
 	getRecord,
 	getManyRecords,
 	updateRecord,
+	upsertRecord,
 	deleteRecord,
 } from './operations/RecordOperations';
 import {
@@ -58,7 +60,7 @@ import {
 
 export type RecordIdType = 'id' | 'alternateKey';
 export type QueryType = 'odata' | 'fetchxml';
-export type Operation = 'create' | 'delete' | 'get' | 'getMany' | 'update' | 'executeQuery' | 'registerEndpoint' | 'registerWebhookStep' | 'listEndpoints' | 'deleteEndpoint' | 'listEndpointSteps' | 'deleteStep' | 'listSdkMessageFilters' | 'uploadPluginAssembly' | 'registerPluginStep' | 'listPluginAssemblies' | 'deletePluginAssembly' | 'uploadWebResource' | 'updateWebResource' | 'listWebResources' | 'deleteWebResource';
+export type Operation = 'create' | 'delete' | 'get' | 'getMany' | 'update' | 'upsert' | 'executeQuery' | 'registerEndpoint' | 'registerWebhookStep' | 'listEndpoints' | 'deleteEndpoint' | 'listEndpointSteps' | 'deleteStep' | 'listSdkMessageFilters' | 'uploadPluginAssembly' | 'registerPluginStep' | 'listPluginAssemblies' | 'deletePluginAssembly' | 'uploadWebResource' | 'updateWebResource' | 'listWebResources' | 'deleteWebResource';
 
 export class Dataverse implements INodeType {
 	description: INodeTypeDescription = {
@@ -103,6 +105,7 @@ export class Dataverse implements INodeType {
 			...createOperationFields,
 			...getOperationFields,
 			...updateOperationFields,
+			...upsertOperationFields,
 			...getManyOperationFields,
 			...sqlQueryFields,
 			optionsDescription,
@@ -154,6 +157,12 @@ export class Dataverse implements INodeType {
 						case 'update': {
 							const updateResult = await updateRecord.call(this, table, i);
 							result = { json: updateResult, pairedItem: { item: i } };
+							break;
+						}
+
+						case 'upsert': {
+							const upsertResult = await upsertRecord.call(this, table, i);
+							result = { json: upsertResult, pairedItem: { item: i } };
 							break;
 						}
 
