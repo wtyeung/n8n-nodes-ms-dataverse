@@ -675,23 +675,42 @@ export async function getAlternateKeyFields(
 		}
 
 		// Fetch entity metadata including alternate keys
-		const response = (await dataverseApiRequest.call(
-			this,
-			'GET',
-			`/EntityDefinitions(LogicalName='${logicalName}')`,
-			undefined,
-			{
-				$select: 'LogicalName',
-				$expand: 'Keys($select=LogicalName,KeyAttributes)',
-			},
-		)) as IDataObject;
+		let response: IDataObject;
+		try {
+			response = (await dataverseApiRequest.call(
+				this,
+				'GET',
+				`/EntityDefinitions(LogicalName='${logicalName}')`,
+				undefined,
+				{
+					$select: 'LogicalName',
+					$expand: 'Keys($select=LogicalName,KeyAttributes)',
+				},
+			)) as IDataObject;
+		} catch (apiError) {
+			const apiErrorMsg = apiError instanceof Error ? apiError.message : String(apiError);
+			return [
+				{
+					name: `⚠️ Could not load alternate keys: ${apiErrorMsg}`,
+					value: '',
+				},
+				{
+					name: 'Tip: You can still type the field name manually',
+					value: '',
+				},
+			];
+		}
 
 		const keys = (response.Keys as IDataObject[]) || [];
 
 		if (keys.length === 0) {
 			return [
 				{
-					name: 'No alternate keys defined on this table',
+					name: '⚠️ No alternate keys defined on this table',
+					value: '',
+				},
+				{
+					name: 'Tip: Define alternate keys in Dataverse or type field name manually',
 					value: '',
 				},
 			];
@@ -700,10 +719,31 @@ export async function getAlternateKeyFields(
 		// Collect all unique field names from all alternate keys
 		const fieldSet = new Set<string>();
 		for (const key of keys) {
-			const keyAttributes = (key.KeyAttributes as string[]) || [];
-			for (const attr of keyAttributes) {
-				fieldSet.add(attr);
+			// KeyAttributes can be an array of strings or objects with LogicalName property
+			let keyAttributes = key.KeyAttributes;
+			
+			if (Array.isArray(keyAttributes)) {
+				for (const attr of keyAttributes) {
+					// Handle both string and object formats
+					const fieldName = typeof attr === 'string' ? attr : (attr as IDataObject).LogicalName as string;
+					if (fieldName) {
+						fieldSet.add(fieldName);
+					}
+				}
 			}
+		}
+
+		if (fieldSet.size === 0) {
+			return [
+				{
+					name: '⚠️ No key attributes found',
+					value: '',
+				},
+				{
+					name: 'Tip: You can type the field name manually',
+					value: '',
+				},
+			];
 		}
 
 		// Convert to options array
