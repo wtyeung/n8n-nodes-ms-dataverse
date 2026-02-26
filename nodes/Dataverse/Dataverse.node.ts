@@ -17,6 +17,7 @@ import {
 	updateOperationFields,
 	getManyOperationFields,
 	upsertOperationFields,
+	shareOperationFields,
 	optionsDescription,
 	sqlQueryFields,
 	sqlOperationDescription,
@@ -34,6 +35,7 @@ import {
 	updateRecord,
 	upsertRecord,
 	deleteRecord,
+	shareRecord,
 } from './operations/RecordOperations';
 import {
 	uploadPluginAssembly,
@@ -60,7 +62,7 @@ import {
 
 export type RecordIdType = 'id' | 'alternateKey';
 export type QueryType = 'odata' | 'fetchxml';
-export type Operation = 'create' | 'delete' | 'get' | 'getMany' | 'update' | 'upsert' | 'executeQuery' | 'registerEndpoint' | 'registerWebhookStep' | 'listEndpoints' | 'deleteEndpoint' | 'listEndpointSteps' | 'deleteStep' | 'listSdkMessageFilters' | 'uploadPluginAssembly' | 'registerPluginStep' | 'listPluginAssemblies' | 'deletePluginAssembly' | 'uploadWebResource' | 'updateWebResource' | 'listWebResources' | 'deleteWebResource';
+export type Operation = 'create' | 'delete' | 'get' | 'getMany' | 'update' | 'upsert' | 'share' | 'executeQuery' | 'registerEndpoint' | 'registerWebhookStep' | 'listEndpoints' | 'deleteEndpoint' | 'listEndpointSteps' | 'deleteStep' | 'listSdkMessageFilters' | 'uploadPluginAssembly' | 'registerPluginStep' | 'listPluginAssemblies' | 'deletePluginAssembly' | 'uploadWebResource' | 'updateWebResource' | 'listWebResources' | 'deleteWebResource';
 
 export class Dataverse implements INodeType {
 	description: INodeTypeDescription = {
@@ -106,6 +108,7 @@ export class Dataverse implements INodeType {
 			...getOperationFields,
 			...updateOperationFields,
 			...upsertOperationFields,
+			...shareOperationFields,
 			...getManyOperationFields,
 			...sqlQueryFields,
 			optionsDescription,
@@ -165,6 +168,12 @@ export class Dataverse implements INodeType {
 						case 'upsert': {
 							const upsertResult = await upsertRecord.call(this, table, i);
 							result = { json: upsertResult, pairedItem: { item: i } };
+							break;
+						}
+
+						case 'share': {
+							const shareResult = await shareRecord.call(this, table, i);
+							result = { json: shareResult, pairedItem: { item: i } };
 							break;
 						}
 

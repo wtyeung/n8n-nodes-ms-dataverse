@@ -77,6 +77,12 @@ export const operationDescription: INodeProperties = {
 			description: 'Create a new record or update if it exists (based on alternate key)',
 			action: 'Upsert a record',
 		},
+		{
+			name: 'Share',
+			value: 'share',
+			description: 'Share a record with a user or team',
+			action: 'Share a record',
+		},
 	],
 	default: 'get',
 };
@@ -579,6 +585,176 @@ export const upsertOperationFields: INodeProperties[] = [
 				fieldsInputMode: ['json'],
 			},
 		},
+	},
+];
+
+export const shareOperationFields: INodeProperties[] = [
+	{
+		displayName: 'Record ID',
+		name: 'recordId',
+		type: 'string',
+		required: true,
+		default: '',
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['share'],
+			},
+		},
+		description: 'ID (GUID) of the record to share',
+		placeholder: 'e.g. 00000000-0000-0000-0000-000000000000',
+	},
+	{
+		displayName: 'Principal Type',
+		name: 'principalType',
+		type: 'options',
+		options: [
+			{
+				name: 'User',
+				value: 'systemuser',
+				description: 'Share with a user',
+			},
+			{
+				name: 'Team',
+				value: 'team',
+				description: 'Share with a team',
+			},
+		],
+		default: 'systemuser',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['share'],
+			},
+		},
+		description: 'Type of principal to share with',
+	},
+	{
+		displayName: 'Principal ID Type',
+		name: 'principalIdType',
+		type: 'options',
+		options: [
+			{
+				name: 'GUID',
+				value: 'guid',
+				description: 'Use the principal ID (GUID)',
+			},
+			{
+				name: 'UPN (User Principal Name)',
+				value: 'upn',
+				description: 'Use email/UPN (will lookup the GUID)',
+			},
+		],
+		default: 'upn',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['share'],
+				principalType: ['systemuser'],
+			},
+		},
+		description: 'How to identify the user',
+	},
+	{
+		displayName: 'Principal ID (GUID)',
+		name: 'principalId',
+		type: 'string',
+		required: true,
+		default: '',
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['share'],
+				principalIdType: ['guid'],
+			},
+		},
+		description: 'GUID of the user or team',
+		placeholder: 'e.g. 00000000-0000-0000-0000-000000000000',
+	},
+	{
+		displayName: 'User Principal Name (Email)',
+		name: 'principalUpn',
+		type: 'string',
+		required: true,
+		default: '',
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['share'],
+				principalIdType: ['upn'],
+			},
+		},
+		description: 'Email address or User Principal Name of the user',
+		placeholder: 'e.g. user@example.com',
+	},
+	{
+		displayName: 'Team Name',
+		name: 'teamName',
+		type: 'string',
+		required: true,
+		default: '',
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['share'],
+				principalType: ['team'],
+			},
+		},
+		description: 'Name of the team (will lookup the GUID)',
+		placeholder: 'e.g. Sales Team',
+	},
+	{
+		displayName: 'Access Rights',
+		name: 'accessRights',
+		type: 'multiOptions',
+		options: [
+			{
+				name: 'Read',
+				value: 'ReadAccess',
+				description: 'Read access to the record',
+			},
+			{
+				name: 'Write',
+				value: 'WriteAccess',
+				description: 'Write access to the record',
+			},
+			{
+				name: 'Delete',
+				value: 'DeleteAccess',
+				description: 'Delete access to the record',
+			},
+			{
+				name: 'Append',
+				value: 'AppendAccess',
+				description: 'Append access to the record',
+			},
+			{
+				name: 'Append To',
+				value: 'AppendToAccess',
+				description: 'Append to access to the record',
+			},
+			{
+				name: 'Assign',
+				value: 'AssignAccess',
+				description: 'Assign access to the record',
+			},
+			{
+				name: 'Share',
+				value: 'ShareAccess',
+				description: 'Share access to the record',
+			},
+		],
+		default: ['ReadAccess', 'WriteAccess'],
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['share'],
+			},
+		},
+		description: 'Access rights to grant',
 	},
 ];
 

@@ -447,3 +447,122 @@ export async function upsertRecord(
 		return (response as IDataObject) || { success: true };
 	}
 }
+
+/**
+ * Share a record with a user or team
+ * Uses GrantAccess action to share records
+ */
+export async function shareRecord(
+	this: IExecuteFunctions,
+	table: string,
+	itemIndex: number,
+): Promise<IDataObject> {
+	const recordId = this.getNodeParameter('recordId', itemIndex) as string;
+	const principalType = this.getNodeParameter('principalType', itemIndex) as string;
+	const accessRights = this.getNodeParameter('accessRights', itemIndex) as string[];
+
+	let principalId = '';
+
+	// Lookup principal ID based on type
+	if (principalType === 'systemuser') {
+		const principalIdType = this.getNodeParameter('principalIdType', itemIndex) as string;
+		
+		if (principalIdType === 'guid') {
+			principalId = this.getNodeParameter('principalId', itemIndex) as string;
+		} else {
+			// Lookup user by UPN
+			const upn = this.getNodeParameter('principalUpn', itemIndex) as string;
+			const userResponse = (await dataverseApiRequest.call(
+				this,
+				'GET',
+				'/systemusers',
+				undefined,
+				{
+					$select: 'systemuserid',
+					$filter: `domainname eq '${upn}'`,
+					$top: '1',
+				},
+				itemIndex,
+			)) as DataverseApiResponse;
+
+			if (!userResponse.value || userResponse.value.length === 0) {
+				throw new Error(`User with UPN '${upn}' not found`);
+			}
+
+			principalId = (userResponse.value[0] as IDataObject).systemuserid as string;
+		}
+	} else {
+		// Lookup team by name
+		const teamName = this.getNodeParameter('teamName', itemIndex) as string;
+		const teamResponse = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			'/teams',
+			undefined,
+			{
+				$select: 'teamid',
+				$filter: `name eq '${teamName}'`,
+				$top: '1',
+			},
+			itemIndex,
+		)) as DataverseApiResponse;
+
+		if (!teamResponse.value || teamResponse.value.length === 0) {
+			throw new Error(`Team with name '${teamName}' not found`);
+		}
+
+		principalId = (teamResponse.value[0] as IDataObject).teamid as string;
+	}
+
+	// Calculate access mask from selected rights
+	const accessMaskMap: { [key: string]: number } = {
+		ReadAccess: 1,
+		WriteAccess: 2,
+		AppendAccess: 4,
+		AppendToAccess: 16,
+		CreateAccess: 32,
+		DeleteAccess: 65536,
+		ShareAccess: 262144,
+		AssignAccess: 524288,
+	};
+
+	let accessMask = 0;
+	for (const right of accessRights) {
+		if (accessMaskMap[right]) {
+			accessMask |= accessMaskMap[right];
+		}
+	}
+
+	// Build GrantAccess request
+	const body = {
+		Target: {
+			'@odata.type': `Microsoft.Dynamics.CRM.${table}`,
+			[`${table}id`]: recordId,
+		},
+		PrincipalAccess: {
+			Principal: {
+				'@odata.type': `Microsoft.Dynamics.CRM.${principalType}`,
+				[`${principalType}id`]: principalId,
+			},
+			AccessMask: accessMask.toString(),
+		},
+	};
+
+	// Execute GrantAccess action
+	await dataverseApiRequest.call(
+		this,
+		'POST',
+		'/GrantAccess',
+		body,
+		undefined,
+		itemIndex,
+	);
+
+	return {
+		success: true,
+		recordId,
+		principalId,
+		principalType,
+		accessRights,
+	};
+}
