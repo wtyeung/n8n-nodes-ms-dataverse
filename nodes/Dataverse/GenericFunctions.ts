@@ -633,6 +633,100 @@ export async function getTableFieldNames(
 }
 
 /**
+ * Get alternate key fields for a table
+ */
+export async function getAlternateKeyFields(
+	this: ILoadOptionsFunctions,
+): Promise<INodePropertyOptions[]> {
+	const returnData: INodePropertyOptions[] = [];
+
+	try {
+		const table = this.getNodeParameter('table', 0) as { mode: string; value: string };
+		const tableValue = table?.value;
+
+		if (!tableValue) {
+			return [
+				{
+					name: 'Please select a table first',
+					value: '',
+				},
+			];
+		}
+
+		// Get the logical name from entity set name
+		let logicalName = tableValue;
+		try {
+			const entityResponse = (await dataverseApiRequest.call(
+				this,
+				'GET',
+				'/EntityDefinitions',
+				undefined,
+				{
+					$select: 'LogicalName,EntitySetName',
+					$filter: `EntitySetName eq '${tableValue}'`,
+				},
+			)) as DataverseApiResponse;
+			
+			if (entityResponse.value && entityResponse.value.length > 0) {
+				logicalName = (entityResponse.value[0] as { LogicalName: string }).LogicalName;
+			}
+		} catch {
+			// Continue with table name as logical name
+		}
+
+		// Fetch entity metadata including alternate keys
+		const response = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			`/EntityDefinitions(LogicalName='${logicalName}')`,
+			undefined,
+			{
+				$select: 'LogicalName',
+				$expand: 'Keys($select=LogicalName,KeyAttributes)',
+			},
+		)) as IDataObject;
+
+		const keys = (response.Keys as IDataObject[]) || [];
+
+		if (keys.length === 0) {
+			return [
+				{
+					name: 'No alternate keys defined on this table',
+					value: '',
+				},
+			];
+		}
+
+		// Collect all unique field names from all alternate keys
+		const fieldSet = new Set<string>();
+		for (const key of keys) {
+			const keyAttributes = (key.KeyAttributes as string[]) || [];
+			for (const attr of keyAttributes) {
+				fieldSet.add(attr);
+			}
+		}
+
+		// Convert to options array
+		for (const fieldName of Array.from(fieldSet).sort()) {
+			returnData.push({
+				name: fieldName,
+				value: fieldName,
+			});
+		}
+
+		return returnData;
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		return [
+			{
+				name: `Error loading alternate keys: ${errorMessage}`,
+				value: '',
+			},
+		];
+	}
+}
+
+/**
  * Build record identifier for API calls (ID or alternate keys)
  */
 export function buildRecordIdentifier(

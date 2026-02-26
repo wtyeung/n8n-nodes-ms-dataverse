@@ -400,7 +400,9 @@ export async function deleteRecord(
 
 /**
  * Upsert a record in Dataverse (create if not exists, update if exists)
- * Requires alternate key to identify the record - Dataverse will match on the alternate key
+ * Uses PATCH with alternate keys in URL: PATCH /table(key1=value1,key2=value2)
+ * If alternate keys provided: Dataverse matches and updates if found, creates if not
+ * If no alternate keys: Creates new record with POST
  */
 export async function upsertRecord(
 	this: IExecuteFunctions,
@@ -418,18 +420,30 @@ export async function upsertRecord(
 		body = fieldsToObject(upsertFields);
 	}
 
-	// Upsert only works with alternate keys
 	const alternateKeys = this.getNodeParameter('alternateKeys.key', itemIndex, []) as AlternateKey[];
-	const recordIdentifier = buildRecordIdentifier('alternateKey', undefined, alternateKeys);
 
-	const response = await dataverseApiRequest.call(
-		this,
-		'PATCH',
-		`/${table}(${recordIdentifier})`,
-		body,
-		undefined,
-		itemIndex,
-	);
-
-	return (response as IDataObject) || { success: true, id: recordIdentifier };
+	// If alternate keys provided, use PATCH with keys in URL for true upsert
+	if (alternateKeys && alternateKeys.length > 0) {
+		const recordIdentifier = buildRecordIdentifier('alternateKey', undefined, alternateKeys);
+		const response = await dataverseApiRequest.call(
+			this,
+			'PATCH',
+			`/${table}(${recordIdentifier})`,
+			body,
+			undefined,
+			itemIndex,
+		);
+		return (response as IDataObject) || { success: true, id: recordIdentifier };
+	} else {
+		// No alternate keys - just create new record
+		const response = await dataverseApiRequest.call(
+			this,
+			'POST',
+			`/${table}`,
+			body,
+			undefined,
+			itemIndex,
+		);
+		return (response as IDataObject) || { success: true };
+	}
 }

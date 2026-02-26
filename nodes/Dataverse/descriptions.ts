@@ -463,14 +463,13 @@ export const upsertOperationFields: INodeProperties[] = [
 		},
 		placeholder: 'Add Key',
 		default: {},
-		required: true,
 		displayOptions: {
 			show: {
 				resource: ['record'],
 				operation: ['upsert'],
 			},
 		},
-		description: 'Alternate key-value pairs to identify the record. The table must have alternate keys defined in Dataverse.',
+		description: 'Alternate key fields to match records. If table has alternate keys defined (e.g., domain, email), specify them here. Dataverse will update if match found, create if not. Leave empty to always create new records.',
 		options: [
 			{
 				displayName: 'Key',
@@ -479,18 +478,20 @@ export const upsertOperationFields: INodeProperties[] = [
 					{
 						displayName: 'Key Name',
 						name: 'name',
-						type: 'string',
+						type: 'options',
+						typeOptions: {
+							loadOptionsMethod: 'getAlternateKeyFields',
+						},
 						default: '',
-						description: 'Name of the alternate key field',
-						placeholder: 'e.g. emailaddress1',
+						description: 'Name of the alternate key field. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 					},
 					{
 						displayName: 'Key Value',
 						name: 'value',
 						type: 'string',
 						default: '',
-						description: 'Value of the alternate key',
-						placeholder: 'e.g. test@example.com',
+						description: 'Value to match on',
+						placeholder: 'e.g. example.com',
 					},
 				],
 			},
