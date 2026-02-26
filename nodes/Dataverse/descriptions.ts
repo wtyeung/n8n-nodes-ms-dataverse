@@ -363,7 +363,7 @@ export const getOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['get', 'update', 'delete', 'upsert'],
+				operation: ['get', 'update', 'delete'],
 			},
 		},
 		options: [
@@ -409,7 +409,7 @@ export const getOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['get', 'update', 'delete', 'upsert'],
+				operation: ['get', 'update', 'delete'],
 				recordIdType: ['alternateKey'],
 			},
 		},
@@ -454,6 +454,48 @@ export const getOperationFields: INodeProperties[] = [
 ];
 
 export const upsertOperationFields: INodeProperties[] = [
+	{
+		displayName: 'Alternate Keys',
+		name: 'alternateKeys',
+		type: 'fixedCollection',
+		typeOptions: {
+			multipleValues: true,
+		},
+		placeholder: 'Add Key',
+		default: {},
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['upsert'],
+			},
+		},
+		description: 'Alternate key-value pairs to identify the record. The table must have alternate keys defined in Dataverse.',
+		options: [
+			{
+				displayName: 'Key',
+				name: 'key',
+				values: [
+					{
+						displayName: 'Key Name',
+						name: 'name',
+						type: 'string',
+						default: '',
+						description: 'Name of the alternate key field',
+						placeholder: 'e.g. emailaddress1',
+					},
+					{
+						displayName: 'Key Value',
+						name: 'value',
+						type: 'string',
+						default: '',
+						description: 'Value of the alternate key',
+						placeholder: 'e.g. test@example.com',
+					},
+				],
+			},
+		],
+	},
 	{
 		displayName: 'Fields Input Mode',
 		name: 'fieldsInputMode',

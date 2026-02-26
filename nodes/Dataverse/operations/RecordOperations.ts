@@ -400,14 +400,13 @@ export async function deleteRecord(
 
 /**
  * Upsert a record in Dataverse (create if not exists, update if exists)
- * Requires alternate key to identify the record
+ * Requires alternate key to identify the record - Dataverse will match on the alternate key
  */
 export async function upsertRecord(
 	this: IExecuteFunctions,
 	table: string,
 	itemIndex: number,
 ): Promise<IDataObject> {
-	const recordIdType = this.getNodeParameter('recordIdType', itemIndex) as string;
 	const fieldsInputMode = this.getNodeParameter('fieldsInputMode', itemIndex, 'collection') as string;
 	let body: IDataObject;
 
@@ -419,15 +418,9 @@ export async function upsertRecord(
 		body = fieldsToObject(upsertFields);
 	}
 
-	let recordIdentifier = '';
-
-	if (recordIdType === 'alternateKey') {
-		const alternateKeys = this.getNodeParameter('alternateKeys.key', itemIndex, []) as AlternateKey[];
-		recordIdentifier = buildRecordIdentifier('alternateKey', undefined, alternateKeys);
-	} else {
-		const recordId = this.getNodeParameter('recordId', itemIndex) as string;
-		recordIdentifier = buildRecordIdentifier('id', recordId);
-	}
+	// Upsert only works with alternate keys
+	const alternateKeys = this.getNodeParameter('alternateKeys.key', itemIndex, []) as AlternateKey[];
+	const recordIdentifier = buildRecordIdentifier('alternateKey', undefined, alternateKeys);
 
 	const response = await dataverseApiRequest.call(
 		this,
