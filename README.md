@@ -31,10 +31,14 @@ This node supports the following operations on Dataverse records:
 ### Record Operations
 
 - **Create**: Create a new record in a table
-- **Delete**: Delete a record by ID
+- **Delete**: Delete a record by ID or alternate key
 - **Get**: Retrieve a single record by ID or alternate key
 - **Get Many**: Retrieve multiple records using OData queries or FetchXML
-- **Update**: Update an existing record
+- **Update**: Update an existing record by ID or alternate key
+- **Upsert**: Create a new record or update if it exists (based on alternate key)
+- **Share Access Add**: Grant access to a record for a user or team
+- **Share Access List**: List all users and teams who have access to a record
+- **Share Access Revoke**: Revoke access to a record from a user or team
 
 ### SQL Query via TDS (Read-Only)
 
@@ -91,14 +95,16 @@ For text-based types (JS, CSS, HTML, XML), provide raw code — it will be base6
 ### Features
 
 - **Dynamic Table Discovery**: Automatically loads available tables from your Dataverse environment using the OData metadata endpoint
-- **Field Schema Viewer**: Browse all available fields with their logical names, types, and permissions (Create/Update/Read)
+- **Dynamic Field Selection**: Field names load from table metadata with dropdowns showing display name, logical name, and type
+- **Alternate Key Support**: All record operations (Get, Update, Delete, Share) support alternate keys with dynamic field selection
 - **Image & File Downloads**: Automatically detect and download image and file fields as binary data
 - **OData Support**: Use OData query syntax for filtering, sorting, and selecting fields
 - **FetchXML Support**: Execute complex queries using FetchXML
 - **TDS/SQL Support**: Execute SQL queries for complex data retrieval and analysis
-- **Alternate Keys**: Retrieve records using alternate keys instead of GUIDs
-- **Field Selection**: Choose specific fields to return in queries
+- **JSON Input Mode**: Create, Update, and Upsert operations support both field collection and JSON input modes
+- **Access Control**: Share records with users/teams, list access, and revoke access with UPN/team name lookup
 - **Custom Authentication**: Use custom environment URL and access token for environments without OAuth2 setup
+- **Enhanced Error Messages**: Detailed error messages with HTTP status codes and Dataverse error codes
 
 ## Credentials
 
@@ -188,10 +194,13 @@ Use this option when you have an access token but don't have OAuth2 configured i
 
 ### Using Alternate Keys
 
-1. Select **Get** operation
+Alternate keys allow you to identify records using business keys instead of GUIDs. Supported operations: Get, Update, Delete, Upsert, Share Access Add, Share Access List, Share Access Revoke.
+
+1. Select any supported operation
 2. Choose **Alternate Key** as Record ID Type
-3. Add your alternate key name-value pairs
-4. Execute the workflow
+3. Select key name from dropdown (loads from table's defined alternate keys)
+4. Enter the key value
+5. Execute the workflow
 
 ### Example: Get Account by Email
 
@@ -200,8 +209,83 @@ Operation: Get
 Table: accounts
 Record ID Type: Alternate Key
 Alternate Keys:
-  - Key Name: emailaddress1
+  - Key Name: emailaddress1 (selected from dropdown)
   - Key Value: contact@example.com
+```
+
+### Using Upsert Operation
+
+Upsert creates a new record if it doesn't exist, or updates it if it does (based on alternate keys).
+
+**With Alternate Keys** (Update or Create):
+```
+Operation: Upsert
+Table: ssl_certs
+Alternate Keys:
+  - Key Name: domain
+  - Key Value: example.com
+Fields:
+  - Field Name: status
+  - Field Value: active
+```
+
+**Without Alternate Keys** (Always Create):
+```
+Operation: Upsert
+Table: contacts
+Fields:
+  - Field Name: firstname
+  - Field Value: John
+```
+
+### Managing Record Access
+
+#### Share Access with User (by Email/UPN)
+
+```
+Operation: Share Access Add
+Table: accounts
+Record ID Type: Primary Key (ID)
+Record ID: abc-123-def-456
+Principal Type: User
+Principal ID Type: UPN (User Principal Name)
+User Principal Name: user@example.com
+Access Rights: Read, Write
+```
+
+#### Share Access with Team (by Name)
+
+```
+Operation: Share Access Add
+Table: accounts
+Record ID Type: Alternate Key
+Alternate Keys:
+  - Key Name: accountnumber
+  - Key Value: ACC-001
+Principal Type: Team
+Team Name: Sales Team
+Access Rights: Read, Write, Delete
+```
+
+#### List Who Has Access
+
+```
+Operation: Share Access List
+Table: accounts
+Record ID: abc-123-def-456
+```
+
+Returns all users and teams with access and their permission levels.
+
+#### Revoke Access
+
+```
+Operation: Share Access Revoke
+Table: accounts
+Record ID: abc-123-def-456
+Principal Type: User
+Principal ID Type: UPN
+User Principal Name: user@example.com
 ```
 
 ### Executing SQL Queries via TDS
