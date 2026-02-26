@@ -369,7 +369,7 @@ export const getOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['get', 'update', 'delete'],
+				operation: ['get', 'update', 'delete', 'share'],
 			},
 		},
 		options: [
@@ -394,7 +394,7 @@ export const getOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['get', 'delete', 'update'],
+				operation: ['get', 'delete', 'update', 'share'],
 				recordIdType: ['id'],
 			},
 		},
@@ -415,7 +415,7 @@ export const getOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['get', 'update', 'delete'],
+				operation: ['get', 'update', 'delete', 'share'],
 				recordIdType: ['alternateKey'],
 			},
 		},
@@ -589,21 +589,6 @@ export const upsertOperationFields: INodeProperties[] = [
 ];
 
 export const shareOperationFields: INodeProperties[] = [
-	{
-		displayName: 'Record ID',
-		name: 'recordId',
-		type: 'string',
-		required: true,
-		default: '',
-		displayOptions: {
-			show: {
-				resource: ['record'],
-				operation: ['share'],
-			},
-		},
-		description: 'ID (GUID) of the record to share',
-		placeholder: 'e.g. 00000000-0000-0000-0000-000000000000',
-	},
 	{
 		displayName: 'Principal Type',
 		name: 'principalType',

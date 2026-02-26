@@ -457,9 +457,36 @@ export async function shareRecord(
 	table: string,
 	itemIndex: number,
 ): Promise<IDataObject> {
-	const recordId = this.getNodeParameter('recordId', itemIndex) as string;
+	const recordIdType = this.getNodeParameter('recordIdType', itemIndex) as string;
 	const principalType = this.getNodeParameter('principalType', itemIndex) as string;
 	const accessRights = this.getNodeParameter('accessRights', itemIndex) as string[];
+
+	// Get record ID (either direct GUID or via alternate keys)
+	let recordId = '';
+	if (recordIdType === 'id') {
+		recordId = this.getNodeParameter('recordId', itemIndex) as string;
+	} else {
+		// Lookup record by alternate keys to get the GUID
+		const alternateKeys = this.getNodeParameter('alternateKeys.key', itemIndex, []) as AlternateKey[];
+		const recordIdentifier = buildRecordIdentifier('alternateKey', undefined, alternateKeys);
+		
+		// Fetch the record to get its GUID
+		const recordResponse = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			`/${table}(${recordIdentifier})`,
+			undefined,
+			{
+				$select: `${table}id`,
+			},
+			itemIndex,
+		)) as IDataObject;
+		
+		recordId = recordResponse[`${table}id`] as string;
+		if (!recordId) {
+			throw new Error(`Could not find record with alternate keys: ${recordIdentifier}`);
+		}
+	}
 
 	let principalId = '';
 
