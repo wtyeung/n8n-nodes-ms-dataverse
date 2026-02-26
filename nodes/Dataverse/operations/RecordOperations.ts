@@ -593,3 +593,188 @@ export async function shareRecord(
 		accessRights,
 	};
 }
+
+/**
+ * List users and teams who have access to a record
+ * Uses RetrieveSharedPrincipalsAndAccess action
+ */
+export async function listSharedUsers(
+	this: IExecuteFunctions,
+	table: string,
+	itemIndex: number,
+): Promise<IDataObject> {
+	const recordIdType = this.getNodeParameter('recordIdType', itemIndex) as string;
+
+	// Get record ID (either direct GUID or via alternate keys)
+	let recordId = '';
+	if (recordIdType === 'id') {
+		recordId = this.getNodeParameter('recordId', itemIndex) as string;
+	} else {
+		// Lookup record by alternate keys to get the GUID
+		const alternateKeys = this.getNodeParameter('alternateKeys.key', itemIndex, []) as AlternateKey[];
+		const recordIdentifier = buildRecordIdentifier('alternateKey', undefined, alternateKeys);
+		
+		// Fetch the record to get its GUID
+		const recordResponse = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			`/${table}(${recordIdentifier})`,
+			undefined,
+			{
+				$select: `${table}id`,
+			},
+			itemIndex,
+		)) as IDataObject;
+		
+		recordId = recordResponse[`${table}id`] as string;
+		if (!recordId) {
+			throw new Error(`Could not find record with alternate keys: ${recordIdentifier}`);
+		}
+	}
+
+	// Build RetrieveSharedPrincipalsAndAccess request
+	const body = {
+		Target: {
+			'@odata.type': `Microsoft.Dynamics.CRM.${table}`,
+			[`${table}id`]: recordId,
+		},
+	};
+
+	// Execute RetrieveSharedPrincipalsAndAccess action
+	const response = (await dataverseApiRequest.call(
+		this,
+		'POST',
+		'/RetrieveSharedPrincipalsAndAccess',
+		body,
+		undefined,
+		itemIndex,
+	)) as IDataObject;
+
+	return {
+		success: true,
+		recordId,
+		sharedPrincipals: response.PrincipalAccesses || [],
+	};
+}
+
+/**
+ * Revoke access to a record from a user or team
+ * Uses RevokeAccess action
+ */
+export async function revokeAccess(
+	this: IExecuteFunctions,
+	table: string,
+	itemIndex: number,
+): Promise<IDataObject> {
+	const recordIdType = this.getNodeParameter('recordIdType', itemIndex) as string;
+	const principalType = this.getNodeParameter('principalType', itemIndex) as string;
+
+	// Get record ID (either direct GUID or via alternate keys)
+	let recordId = '';
+	if (recordIdType === 'id') {
+		recordId = this.getNodeParameter('recordId', itemIndex) as string;
+	} else {
+		// Lookup record by alternate keys to get the GUID
+		const alternateKeys = this.getNodeParameter('alternateKeys.key', itemIndex, []) as AlternateKey[];
+		const recordIdentifier = buildRecordIdentifier('alternateKey', undefined, alternateKeys);
+		
+		// Fetch the record to get its GUID
+		const recordResponse = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			`/${table}(${recordIdentifier})`,
+			undefined,
+			{
+				$select: `${table}id`,
+			},
+			itemIndex,
+		)) as IDataObject;
+		
+		recordId = recordResponse[`${table}id`] as string;
+		if (!recordId) {
+			throw new Error(`Could not find record with alternate keys: ${recordIdentifier}`);
+		}
+	}
+
+	let principalId = '';
+
+	// Lookup principal ID based on type
+	if (principalType === 'systemuser') {
+		const principalIdType = this.getNodeParameter('principalIdType', itemIndex) as string;
+		
+		if (principalIdType === 'guid') {
+			principalId = this.getNodeParameter('principalId', itemIndex) as string;
+		} else {
+			// Lookup user by UPN
+			const upn = this.getNodeParameter('principalUpn', itemIndex) as string;
+			const userResponse = (await dataverseApiRequest.call(
+				this,
+				'GET',
+				'/systemusers',
+				undefined,
+				{
+					$select: 'systemuserid',
+					$filter: `domainname eq '${upn}'`,
+					$top: '1',
+				},
+				itemIndex,
+			)) as DataverseApiResponse;
+
+			if (!userResponse.value || userResponse.value.length === 0) {
+				throw new Error(`User with UPN '${upn}' not found`);
+			}
+
+			principalId = (userResponse.value[0] as IDataObject).systemuserid as string;
+		}
+	} else {
+		// Lookup team by name
+		const teamName = this.getNodeParameter('teamName', itemIndex) as string;
+		const teamResponse = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			'/teams',
+			undefined,
+			{
+				$select: 'teamid',
+				$filter: `name eq '${teamName}'`,
+				$top: '1',
+			},
+			itemIndex,
+		)) as DataverseApiResponse;
+
+		if (!teamResponse.value || teamResponse.value.length === 0) {
+			throw new Error(`Team with name '${teamName}' not found`);
+		}
+
+		principalId = (teamResponse.value[0] as IDataObject).teamid as string;
+	}
+
+	// Build RevokeAccess request
+	const body = {
+		Target: {
+			'@odata.type': `Microsoft.Dynamics.CRM.${table}`,
+			[`${table}id`]: recordId,
+		},
+		Revokee: {
+			'@odata.type': `Microsoft.Dynamics.CRM.${principalType}`,
+			[`${principalType}id`]: principalId,
+		},
+	};
+
+	// Execute RevokeAccess action
+	await dataverseApiRequest.call(
+		this,
+		'POST',
+		'/RevokeAccess',
+		body,
+		undefined,
+		itemIndex,
+	);
+
+	return {
+		success: true,
+		recordId,
+		principalId,
+		principalType,
+	};
+}

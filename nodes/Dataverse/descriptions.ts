@@ -78,10 +78,22 @@ export const operationDescription: INodeProperties = {
 			action: 'Upsert a record',
 		},
 		{
-			name: 'Share',
-			value: 'share',
+			name: 'Share Access Add',
+			value: 'shareAccessAdd',
 			description: 'Share a record with a user or team',
-			action: 'Share a record',
+			action: 'Share access add',
+		},
+		{
+			name: 'Share Access List',
+			value: 'shareAccessList',
+			description: 'List users and teams who have access to a record',
+			action: 'Share access list',
+		},
+		{
+			name: 'Share Access Revoke',
+			value: 'shareAccessRevoke',
+			description: 'Revoke access to a record from a user or team',
+			action: 'Share access revoke',
 		},
 	],
 	default: 'get',
@@ -369,7 +381,7 @@ export const getOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['get', 'update', 'delete', 'share'],
+				operation: ['get', 'update', 'delete', 'shareAccessAdd', 'shareAccessList', 'shareAccessRevoke'],
 			},
 		},
 		options: [
@@ -394,7 +406,7 @@ export const getOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['get', 'delete', 'update', 'share'],
+				operation: ['get', 'delete', 'update', 'shareAccessAdd', 'shareAccessList', 'shareAccessRevoke'],
 				recordIdType: ['id'],
 			},
 		},
@@ -415,7 +427,7 @@ export const getOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['get', 'update', 'delete', 'share'],
+				operation: ['get', 'update', 'delete', 'shareAccessAdd', 'shareAccessList', 'shareAccessRevoke'],
 				recordIdType: ['alternateKey'],
 			},
 		},
@@ -610,7 +622,7 @@ export const shareOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['share'],
+				operation: ['shareAccessAdd'],
 			},
 		},
 		description: 'Type of principal to share with',
@@ -636,7 +648,7 @@ export const shareOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['share'],
+				operation: ['shareAccessAdd'],
 				principalType: ['systemuser'],
 			},
 		},
@@ -651,7 +663,7 @@ export const shareOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['share'],
+				operation: ['shareAccessAdd'],
 				principalIdType: ['guid'],
 			},
 		},
@@ -667,7 +679,7 @@ export const shareOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['share'],
+				operation: ['shareAccessAdd'],
 				principalIdType: ['upn'],
 			},
 		},
@@ -683,7 +695,7 @@ export const shareOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['share'],
+				operation: ['shareAccessAdd'],
 				principalType: ['team'],
 			},
 		},
@@ -736,10 +748,114 @@ export const shareOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['share'],
+				operation: ['shareAccessAdd'],
 			},
 		},
 		description: 'Access rights to grant',
+	},
+];
+
+export const revokeAccessOperationFields: INodeProperties[] = [
+	{
+		displayName: 'Principal Type',
+		name: 'principalType',
+		type: 'options',
+		options: [
+			{
+				name: 'User',
+				value: 'systemuser',
+				description: 'Revoke access from a user',
+			},
+			{
+				name: 'Team',
+				value: 'team',
+				description: 'Revoke access from a team',
+			},
+		],
+		default: 'systemuser',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['shareAccessRevoke'],
+			},
+		},
+		description: 'Type of principal to revoke access from',
+	},
+	{
+		displayName: 'Principal ID Type',
+		name: 'principalIdType',
+		type: 'options',
+		options: [
+			{
+				name: 'GUID',
+				value: 'guid',
+				description: 'Use the principal ID (GUID)',
+			},
+			{
+				name: 'UPN (User Principal Name)',
+				value: 'upn',
+				description: 'Use email/UPN (will lookup the GUID)',
+			},
+		],
+		default: 'upn',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['shareAccessRevoke'],
+				principalType: ['systemuser'],
+			},
+		},
+		description: 'How to identify the user',
+	},
+	{
+		displayName: 'Principal ID (GUID)',
+		name: 'principalId',
+		type: 'string',
+		required: true,
+		default: '',
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['shareAccessRevoke'],
+				principalIdType: ['guid'],
+			},
+		},
+		description: 'GUID of the user or team',
+		placeholder: 'e.g. 00000000-0000-0000-0000-000000000000',
+	},
+	{
+		displayName: 'User Principal Name (Email)',
+		name: 'principalUpn',
+		type: 'string',
+		required: true,
+		default: '',
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['shareAccessRevoke'],
+				principalIdType: ['upn'],
+			},
+		},
+		description: 'Email address or User Principal Name of the user',
+		placeholder: 'e.g. user@example.com',
+	},
+	{
+		displayName: 'Team Name',
+		name: 'teamName',
+		type: 'string',
+		required: true,
+		default: '',
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['shareAccessRevoke'],
+				principalType: ['team'],
+			},
+		},
+		description: 'Name of the team (will lookup the GUID)',
+		placeholder: 'e.g. Sales Team',
 	},
 ];
 

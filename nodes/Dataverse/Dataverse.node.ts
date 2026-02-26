@@ -18,6 +18,7 @@ import {
 	getManyOperationFields,
 	upsertOperationFields,
 	shareOperationFields,
+	revokeAccessOperationFields,
 	optionsDescription,
 	sqlQueryFields,
 	sqlOperationDescription,
@@ -36,6 +37,8 @@ import {
 	upsertRecord,
 	deleteRecord,
 	shareRecord,
+	listSharedUsers,
+	revokeAccess,
 } from './operations/RecordOperations';
 import {
 	uploadPluginAssembly,
@@ -62,7 +65,7 @@ import {
 
 export type RecordIdType = 'id' | 'alternateKey';
 export type QueryType = 'odata' | 'fetchxml';
-export type Operation = 'create' | 'delete' | 'get' | 'getMany' | 'update' | 'upsert' | 'share' | 'executeQuery' | 'registerEndpoint' | 'registerWebhookStep' | 'listEndpoints' | 'deleteEndpoint' | 'listEndpointSteps' | 'deleteStep' | 'listSdkMessageFilters' | 'uploadPluginAssembly' | 'registerPluginStep' | 'listPluginAssemblies' | 'deletePluginAssembly' | 'uploadWebResource' | 'updateWebResource' | 'listWebResources' | 'deleteWebResource';
+export type Operation = 'create' | 'delete' | 'get' | 'getMany' | 'update' | 'upsert' | 'shareAccessAdd' | 'shareAccessList' | 'shareAccessRevoke' | 'executeQuery' | 'registerEndpoint' | 'registerWebhookStep' | 'listEndpoints' | 'deleteEndpoint' | 'listEndpointSteps' | 'deleteStep' | 'listSdkMessageFilters' | 'uploadPluginAssembly' | 'registerPluginStep' | 'listPluginAssemblies' | 'deletePluginAssembly' | 'uploadWebResource' | 'updateWebResource' | 'listWebResources' | 'deleteWebResource';
 
 export class Dataverse implements INodeType {
 	description: INodeTypeDescription = {
@@ -109,6 +112,7 @@ export class Dataverse implements INodeType {
 			...updateOperationFields,
 			...upsertOperationFields,
 			...shareOperationFields,
+			...revokeAccessOperationFields,
 			...getManyOperationFields,
 			...sqlQueryFields,
 			optionsDescription,
@@ -171,9 +175,21 @@ export class Dataverse implements INodeType {
 							break;
 						}
 
-						case 'share': {
+						case 'shareAccessAdd': {
 							const shareResult = await shareRecord.call(this, table, i);
 							result = { json: shareResult, pairedItem: { item: i } };
+							break;
+						}
+
+						case 'shareAccessList': {
+							const listResult = await listSharedUsers.call(this, table, i);
+							result = { json: listResult, pairedItem: { item: i } };
+							break;
+						}
+
+						case 'shareAccessRevoke': {
+							const revokeResult = await revokeAccess.call(this, table, i);
+							result = { json: revokeResult, pairedItem: { item: i } };
 							break;
 						}
 
