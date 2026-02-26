@@ -281,7 +281,7 @@ export const fieldSchemaSelector: INodeProperties = {
 	},
 	displayOptions: {
 		show: {
-			resource: ['record', 'sql', 'webhook'],
+			resource: ['sql'],
 		},
 	},
 	default: '',
