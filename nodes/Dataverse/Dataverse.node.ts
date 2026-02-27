@@ -3,15 +3,18 @@ import type {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	IDataObject,
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import { searchTables, getTableFieldsForDisplay, getTableFieldNames, getAlternateKeyFields } from './GenericFunctions';
+import { searchTables, getTableFieldsForDisplay, getTableFieldNames, getAlternateKeyFields, getChoiceFieldOptions } from './GenericFunctions';
 import {
 	resourceDescription,
 	operationDescription,
 	tableDescription,
 	fieldSchemaSelector,
+	choiceFieldSelector,
+	choiceOptionsViewer,
 	createOperationFields,
 	getOperationFields,
 	updateOperationFields,
@@ -22,6 +25,8 @@ import {
 	optionsDescription,
 	sqlQueryFields,
 	sqlOperationDescription,
+	globalChoiceOperationDescription,
+	globalChoiceOperationFields,
 	webhookOperationDescription,
 	webhookOperationFields,
 	pluginOperationDescription,
@@ -40,6 +45,15 @@ import {
 	listSharedUsers,
 	revokeAccess,
 } from './operations/RecordOperations';
+import {
+	listGlobalChoices,
+	getGlobalChoice,
+	createGlobalChoice,
+	addOptionToGlobalChoice,
+	updateOptionInGlobalChoice,
+	deleteOptionFromGlobalChoice,
+	deleteGlobalChoice,
+} from './operations/GlobalChoiceOperations';
 import {
 	uploadPluginAssembly,
 	registerPluginStep,
@@ -65,7 +79,7 @@ import {
 
 export type RecordIdType = 'id' | 'alternateKey';
 export type QueryType = 'odata' | 'fetchxml';
-export type Operation = 'create' | 'delete' | 'get' | 'getMany' | 'update' | 'upsert' | 'shareAccessAdd' | 'shareAccessList' | 'shareAccessRevoke' | 'executeQuery' | 'registerEndpoint' | 'registerWebhookStep' | 'listEndpoints' | 'deleteEndpoint' | 'listEndpointSteps' | 'deleteStep' | 'listSdkMessageFilters' | 'uploadPluginAssembly' | 'registerPluginStep' | 'listPluginAssemblies' | 'deletePluginAssembly' | 'uploadWebResource' | 'updateWebResource' | 'listWebResources' | 'deleteWebResource';
+export type Operation = 'create' | 'delete' | 'get' | 'getMany' | 'update' | 'upsert' | 'shareAccessAdd' | 'shareAccessList' | 'shareAccessRevoke' | 'list' | 'addOption' | 'updateOption' | 'deleteOption' | 'executeQuery' | 'registerEndpoint' | 'registerWebhookStep' | 'listEndpoints' | 'deleteEndpoint' | 'listEndpointSteps' | 'deleteStep' | 'listSdkMessageFilters' | 'uploadPluginAssembly' | 'registerPluginStep' | 'listPluginAssemblies' | 'deletePluginAssembly' | 'uploadWebResource' | 'updateWebResource' | 'listWebResources' | 'deleteWebResource';
 
 export class Dataverse implements INodeType {
 	description: INodeTypeDescription = {
@@ -98,6 +112,7 @@ export class Dataverse implements INodeType {
 		properties: [
 			resourceDescription,
 			operationDescription,
+			globalChoiceOperationDescription,
 			sqlOperationDescription,
 			pluginOperationDescription,
 			...pluginOperationFields,
@@ -107,6 +122,8 @@ export class Dataverse implements INodeType {
 			...webhookOperationFields,
 			tableDescription,
 			fieldSchemaSelector,
+			choiceFieldSelector,
+			choiceOptionsViewer,
 			...createOperationFields,
 			...getOperationFields,
 			...updateOperationFields,
@@ -114,6 +131,7 @@ export class Dataverse implements INodeType {
 			...shareOperationFields,
 			...revokeAccessOperationFields,
 			...getManyOperationFields,
+			...globalChoiceOperationFields,
 			...sqlQueryFields,
 			optionsDescription,
 		],
@@ -127,6 +145,7 @@ export class Dataverse implements INodeType {
 			getTableFieldsForDisplay,
 			getTableFieldNames,
 			getAlternateKeyFields,
+			getChoiceFieldOptions,
 		},
 	};
 
@@ -142,6 +161,40 @@ export class Dataverse implements INodeType {
 					// Handle SQL query execution
 					const sqlResults = await executeSqlQuery.call(this, i);
 					returnData.push(...sqlResults);
+				} else if (resource === 'globalChoice') {
+					// Handle Global Choice operations
+					let result: IDataObject;
+
+					switch (operation) {
+						case 'list':
+							result = await listGlobalChoices.call(this, i);
+							break;
+						case 'get':
+							result = await getGlobalChoice.call(this, i);
+							break;
+						case 'create':
+							result = await createGlobalChoice.call(this, i);
+							break;
+						case 'addOption':
+							result = await addOptionToGlobalChoice.call(this, i);
+							break;
+						case 'updateOption':
+							result = await updateOptionInGlobalChoice.call(this, i);
+							break;
+						case 'deleteOption':
+							result = await deleteOptionFromGlobalChoice.call(this, i);
+							break;
+						case 'delete':
+							result = await deleteGlobalChoice.call(this, i);
+							break;
+						default:
+							throw new NodeOperationError(
+								this.getNode(),
+								`The operation "${operation}" is not supported for Global Choice`,
+							);
+					}
+
+					returnData.push({ json: result, pairedItem: { item: i } });
 				} else if (resource === 'record') {
 					const table = this.getNodeParameter('table', i, '', { extractValue: true }) as string;
 					let result: INodeExecutionData | INodeExecutionData[];

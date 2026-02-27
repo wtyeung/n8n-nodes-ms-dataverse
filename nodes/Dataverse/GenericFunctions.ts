@@ -838,3 +838,158 @@ export function buildODataQuery(
 
 	return qs;
 }
+
+/**
+ * Get choice field options for a specific field
+ * Supports both Local Choice (OptionSet) and Global Choice (GlobalOptionSet)
+ */
+export async function getChoiceFieldOptions(
+	this: ILoadOptionsFunctions,
+): Promise<INodePropertyOptions[]> {
+	const returnData: INodePropertyOptions[] = [];
+
+	try {
+		const table = this.getNodeParameter('table', 0) as { mode: string; value: string };
+		const tableValue = table?.value;
+
+		if (!tableValue) {
+			return [
+				{
+					name: 'Please select a table first',
+					value: '',
+				},
+			];
+		}
+
+		// Get the choice field name that user wants to view
+		const choiceFieldName = this.getNodeParameter('viewChoiceField', 0) as string;
+
+		if (!choiceFieldName) {
+			return [
+				{
+					name: 'Please select a field to view its options',
+					value: '',
+				},
+			];
+		}
+
+		// Get the logical name from entity set name
+		let logicalName = tableValue;
+		try {
+			const entityResponse = (await dataverseApiRequest.call(
+				this,
+				'GET',
+				'/EntityDefinitions',
+				undefined,
+				{
+					$select: 'LogicalName,EntitySetName',
+					$filter: `EntitySetName eq '${tableValue}'`,
+				},
+			)) as DataverseApiResponse;
+			
+			if (entityResponse.value && entityResponse.value.length > 0) {
+				logicalName = (entityResponse.value[0] as { LogicalName: string }).LogicalName;
+			}
+		} catch {
+			// Continue with table name as logical name
+		}
+
+		// Fetch field metadata with expanded OptionSet/GlobalOptionSet
+		let response: IDataObject;
+		try {
+			response = (await dataverseApiRequest.call(
+				this,
+				'GET',
+				`/EntityDefinitions(LogicalName='${logicalName}')/Attributes(LogicalName='${choiceFieldName}')`,
+				undefined,
+				{
+					$select: 'LogicalName,AttributeType',
+					$expand: 'OptionSet($select=Options),GlobalOptionSet($select=Options,Name)',
+				},
+			)) as IDataObject;
+		} catch (error) {
+			const errorMsg = error instanceof Error ? error.message : String(error);
+			return [
+				{
+					name: `⚠️ Could not load field: ${choiceFieldName}`,
+					value: '',
+				},
+				{
+					name: `Error: ${errorMsg}`,
+					value: '',
+				},
+			];
+		}
+
+		const attributeType = response.AttributeType as string;
+
+		// Check if this is a choice field
+		if (!['Picklist', 'State', 'Status'].includes(attributeType)) {
+			return [
+				{
+					name: `⚠️ Field "${choiceFieldName}" is not a choice field`,
+					value: '',
+				},
+				{
+					name: `Type: ${attributeType}`,
+					value: '',
+				},
+			];
+		}
+
+		// Get options from either OptionSet (local) or GlobalOptionSet (global)
+		let options: Array<{ Value: number; Label: { UserLocalizedLabel: { Label: string } } }> = [];
+		let choiceType = 'Local Choice';
+
+		if (response.OptionSet && (response.OptionSet as IDataObject).Options) {
+			options = ((response.OptionSet as IDataObject).Options as Array<{ Value: number; Label: { UserLocalizedLabel: { Label: string } } }>);
+			choiceType = 'Local Choice';
+		} else if (response.GlobalOptionSet && (response.GlobalOptionSet as IDataObject).Options) {
+			options = ((response.GlobalOptionSet as IDataObject).Options as Array<{ Value: number; Label: { UserLocalizedLabel: { Label: string } } }>);
+			const globalName = (response.GlobalOptionSet as IDataObject).Name as string;
+			choiceType = `Global Choice (${globalName})`;
+		}
+
+		if (options.length === 0) {
+			return [
+				{
+					name: 'No options available for this field',
+					value: '',
+				},
+			];
+		}
+
+		// Add header showing choice type
+		returnData.push({
+			name: `━━━ ${choiceType} ━━━`,
+			value: '',
+		});
+
+		// Format options as "Label (Value)"
+		for (const option of options) {
+			const label = option.Label?.UserLocalizedLabel?.Label || `Option ${option.Value}`;
+			const value = option.Value;
+			const name = `${label} (${value})`;
+
+			returnData.push({
+				name,
+				value: value.toString(),
+			});
+		}
+
+		return returnData;
+	} catch (error) {
+		const errorMsg = error instanceof Error ? error.message : String(error);
+		return [
+			{
+				name: `⚠️ Error loading choice options`,
+				value: '',
+			},
+			{
+				name: `${errorMsg}`,
+				value: '',
+			},
+		];
+	}
+}
+

@@ -11,6 +11,10 @@ export const resourceDescription: INodeProperties = {
 			value: 'record',
 		},
 		{
+			name: 'Global Choice',
+			value: 'globalChoice',
+		},
+		{
 			name: 'SQL Query via TDS (Read-Only)',
 			value: 'sql',
 		},
@@ -97,6 +101,63 @@ export const operationDescription: INodeProperties = {
 		},
 	],
 	default: 'get',
+};
+
+export const globalChoiceOperationDescription: INodeProperties = {
+	displayName: 'Operation',
+	name: 'operation',
+	type: 'options',
+	noDataExpression: true,
+	displayOptions: {
+		show: {
+			resource: ['globalChoice'],
+		},
+	},
+	options: [
+		{
+			name: 'List',
+			value: 'list',
+			description: 'List all global choices',
+			action: 'List global choices',
+		},
+		{
+			name: 'Get',
+			value: 'get',
+			description: 'Get a specific global choice',
+			action: 'Get a global choice',
+		},
+		{
+			name: 'Create',
+			value: 'create',
+			description: 'Create a new global choice',
+			action: 'Create a global choice',
+		},
+		{
+			name: 'Add Option',
+			value: 'addOption',
+			description: 'Add an option to an existing global choice',
+			action: 'Add option to global choice',
+		},
+		{
+			name: 'Update Option',
+			value: 'updateOption',
+			description: 'Update an option label in a global choice',
+			action: 'Update option in global choice',
+		},
+		{
+			name: 'Delete Option',
+			value: 'deleteOption',
+			description: 'Delete an option from a global choice',
+			action: 'Delete option from global choice',
+		},
+		{
+			name: 'Delete',
+			value: 'delete',
+			description: 'Delete a global choice',
+			action: 'Delete a global choice',
+		},
+	],
+	default: 'list',
 };
 
 export const optionsDescription: INodeProperties = {
@@ -287,6 +348,42 @@ export const fieldSchemaSelector: INodeProperties = {
 	default: '',
 	description: 'Reference only: Select a table first, then use this to view available fields with their logical names, types, and permissions. This field is not used in the operation. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 	placeholder: 'Select a table first...',
+};
+
+export const choiceFieldSelector: INodeProperties = {
+	displayName: 'View Choice Field',
+	name: 'viewChoiceField',
+	type: 'options',
+	typeOptions: {
+		loadOptionsMethod: 'getTableFieldNames',
+	},
+	displayOptions: {
+		show: {
+			resource: ['record'],
+			operation: ['create', 'update', 'upsert'],
+		},
+	},
+	default: '',
+	description: 'Select a choice field to view its available options with values. This helps you find the correct integer value to use when setting choice fields.',
+	placeholder: 'Select a field...',
+};
+
+export const choiceOptionsViewer: INodeProperties = {
+	displayName: 'Choice Options (Reference Only) Name or ID',
+	name: 'viewChoiceOptions',
+	type: 'options',
+	typeOptions: {
+		loadOptionsMethod: 'getChoiceFieldOptions',
+	},
+	displayOptions: {
+		show: {
+			resource: ['record'],
+			operation: ['create', 'update', 'upsert'],
+		},
+	},
+	default: '',
+	description: 'Reference only: Shows available options for the selected choice field in "Label (Value)" format. Copy the value (number) to use in your field values. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+	placeholder: 'Select a choice field first...',
 };
 
 export const createOperationFields: INodeProperties[] = [
@@ -1789,5 +1886,172 @@ export const webResourceOperationFields: INodeProperties[] = [
 		],
 		default: 0,
 		description: 'Filter web resources by type',
+	},
+];
+
+// Global Choice Operation Fields
+export const globalChoiceOperationFields: INodeProperties[] = [
+	// Get Global Choice
+	{
+		displayName: 'Choice Name',
+		name: 'choiceName',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['globalChoice'],
+				operation: ['get', 'addOption', 'updateOption', 'deleteOption', 'delete'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'Logical name of the global choice',
+		placeholder: 'e.g. new_colors',
+	},
+	// Create Global Choice
+	{
+		displayName: 'Choice Name',
+		name: 'newChoiceName',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['globalChoice'],
+				operation: ['create'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'Logical name for the new global choice (must be unique)',
+		placeholder: 'e.g. new_colors',
+	},
+	{
+		displayName: 'Display Name',
+		name: 'displayName',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['globalChoice'],
+				operation: ['create'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'User-friendly display name for the global choice',
+		placeholder: 'e.g. Colors',
+	},
+	{
+		displayName: 'Description',
+		name: 'description',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['globalChoice'],
+				operation: ['create'],
+			},
+		},
+		default: '',
+		description: 'Description of the global choice',
+	},
+	{
+		displayName: 'Options',
+		name: 'options',
+		type: 'fixedCollection',
+		typeOptions: {
+			multipleValues: true,
+		},
+		placeholder: 'Add Option',
+		displayOptions: {
+			show: {
+				resource: ['globalChoice'],
+				operation: ['create'],
+			},
+		},
+		default: {},
+		options: [
+			{
+				displayName: 'Option',
+				name: 'option',
+				values: [
+					{
+						displayName: 'Label',
+						name: 'label',
+						type: 'string',
+						default: '',
+						required: true,
+						description: 'Display label for the option',
+						placeholder: 'e.g. Red',
+					},
+					{
+						displayName: 'Value',
+						name: 'value',
+						type: 'number',
+						default: 1,
+						required: true,
+						description: 'Integer value for the option',
+						placeholder: 'e.g. 1',
+					},
+				],
+			},
+		],
+	},
+	// Add Option
+	{
+		displayName: 'Option Label',
+		name: 'optionLabel',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['globalChoice'],
+				operation: ['addOption'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'Display label for the new option',
+		placeholder: 'e.g. Blue',
+	},
+	{
+		displayName: 'Option Value',
+		name: 'optionValue',
+		type: 'number',
+		displayOptions: {
+			show: {
+				resource: ['globalChoice'],
+				operation: ['addOption'],
+			},
+		},
+		default: undefined,
+		description: 'Integer value for the option (leave empty to auto-generate)',
+		placeholder: 'e.g. 3',
+	},
+	// Update Option
+	{
+		displayName: 'Option Value',
+		name: 'optionValue',
+		type: 'number',
+		displayOptions: {
+			show: {
+				resource: ['globalChoice'],
+				operation: ['updateOption', 'deleteOption'],
+			},
+		},
+		default: 1,
+		required: true,
+		description: 'Integer value of the option to update/delete',
+		placeholder: 'e.g. 1',
+	},
+	{
+		displayName: 'New Label',
+		name: 'newLabel',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['globalChoice'],
+				operation: ['updateOption'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'New display label for the option',
+		placeholder: 'e.g. Dark Red',
 	},
 ];

@@ -40,6 +40,26 @@ This node supports the following operations on Dataverse records:
 - **Share Access List**: List all users and teams who have access to a record
 - **Share Access Revoke**: Revoke access to a record from a user or team
 
+#### Choice Field Helper
+
+When working with choice (picklist) fields in Create, Update, or Upsert operations:
+- **View Choice Field**: Select a field name to view its available options
+- **Choice Options Viewer**: Displays options in "Label (Value)" format
+- Supports both Local Choice (OptionSet) and Global Choice (GlobalOptionSet)
+- Copy the numeric value to use in your field values
+
+### Global Choice Operations
+
+Manage global choice option sets (reusable picklists across multiple tables):
+
+- **List**: List all global choices with their options
+- **Get**: Retrieve a specific global choice with all its options
+- **Create**: Create a new global choice with initial options
+- **Add Option**: Add a new option to an existing global choice
+- **Update Option**: Update the label of an existing option
+- **Delete Option**: Remove an option from a global choice
+- **Delete**: Delete an entire global choice
+
 ### SQL Query via TDS (Read-Only)
 
 - **Execute Query**: Run SQL queries directly against Dataverse using the Tabular Data Stream (TDS) endpoint
