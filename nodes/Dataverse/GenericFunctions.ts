@@ -110,6 +110,7 @@ export async function dataverseApiRequest(
 		let httpStatus = '';
 		
 		// Try to extract error from various possible locations in the error object
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const errorObj = error as any;
 		
 		// Check for Dataverse error in response body
@@ -735,7 +736,7 @@ export async function getAlternateKeyFields(
 		const fieldSet = new Set<string>();
 		for (const key of keys) {
 			// KeyAttributes can be an array of strings or objects with LogicalName property
-			let keyAttributes = key.KeyAttributes;
+			const keyAttributes = key.KeyAttributes;
 			
 			if (Array.isArray(keyAttributes)) {
 				for (const attr of keyAttributes) {

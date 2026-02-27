@@ -7,28 +7,28 @@ export const resourceDescription: INodeProperties = {
 	noDataExpression: true,
 	options: [
 		{
-			name: 'Record',
-			value: 'record',
-		},
-		{
 			name: 'Global Choice',
 			value: 'globalChoice',
-		},
-		{
-			name: 'SQL Query via TDS (Read-Only)',
-			value: 'sql',
-		},
-		{
-			name: 'Webhook',
-			value: 'webhook',
 		},
 		{
 			name: 'Plugin',
 			value: 'plugin',
 		},
 		{
+			name: 'Record',
+			value: 'record',
+		},
+		{
+			name: 'SQL Query via TDS (Read-Only)',
+			value: 'sql',
+		},
+		{
 			name: 'Web Resource',
 			value: 'webresource',
+		},
+		{
+			name: 'Webhook',
+			value: 'webhook',
 		},
 	],
 	default: 'record',
@@ -58,6 +58,12 @@ export const operationDescription: INodeProperties = {
 			action: 'Create a record',
 		},
 		{
+			name: 'Create or Update',
+			value: 'upsert',
+			description: 'Create a new record, or update the current one if it already exists (upsert)',
+			action: 'Upsert a record',
+		},
+		{
 			name: 'Delete',
 			value: 'delete',
 			description: 'Delete a record',
@@ -74,18 +80,6 @@ export const operationDescription: INodeProperties = {
 			value: 'getMany',
 			description: 'Get multiple records',
 			action: 'Get many records',
-		},
-		{
-			name: 'Update',
-			value: 'update',
-			description: 'Update a record',
-			action: 'Update a record',
-		},
-		{
-			name: 'Upsert',
-			value: 'upsert',
-			description: 'Create a new record or update if it exists (based on alternate key)',
-			action: 'Upsert a record',
 		},
 		{
 			name: 'Share Access Add',
@@ -105,6 +99,12 @@ export const operationDescription: INodeProperties = {
 			description: 'Revoke access to a record from a user or team',
 			action: 'Share access revoke',
 		},
+		{
+			name: 'Update',
+			value: 'update',
+			description: 'Update a record',
+			action: 'Update a record',
+		},
 	],
 	default: 'get',
 };
@@ -121,16 +121,10 @@ export const globalChoiceOperationDescription: INodeProperties = {
 	},
 	options: [
 		{
-			name: 'List',
-			value: 'list',
-			description: 'List all global choices',
-			action: 'List global choices',
-		},
-		{
-			name: 'Get',
-			value: 'get',
-			description: 'Get a specific global choice',
-			action: 'Get a global choice',
+			name: 'Add Option',
+			value: 'addOption',
+			description: 'Add an option to an existing global choice',
+			action: 'Add option to global choice',
 		},
 		{
 			name: 'Create',
@@ -139,16 +133,10 @@ export const globalChoiceOperationDescription: INodeProperties = {
 			action: 'Create a global choice',
 		},
 		{
-			name: 'Add Option',
-			value: 'addOption',
-			description: 'Add an option to an existing global choice',
-			action: 'Add option to global choice',
-		},
-		{
-			name: 'Update Option',
-			value: 'updateOption',
-			description: 'Update an option label in a global choice',
-			action: 'Update option in global choice',
+			name: 'Delete',
+			value: 'delete',
+			description: 'Delete a global choice',
+			action: 'Delete a global choice',
 		},
 		{
 			name: 'Delete Option',
@@ -157,10 +145,22 @@ export const globalChoiceOperationDescription: INodeProperties = {
 			action: 'Delete option from global choice',
 		},
 		{
-			name: 'Delete',
-			value: 'delete',
-			description: 'Delete a global choice',
-			action: 'Delete a global choice',
+			name: 'Get',
+			value: 'get',
+			description: 'Get a specific global choice',
+			action: 'Get a global choice',
+		},
+		{
+			name: 'List',
+			value: 'list',
+			description: 'List all global choices',
+			action: 'List global choices',
+		},
+		{
+			name: 'Update Option',
+			value: 'updateOption',
+			description: 'Update an option label in a global choice',
+			action: 'Update option in global choice',
 		},
 	],
 	default: 'list',
@@ -357,7 +357,7 @@ export const fieldSchemaSelector: INodeProperties = {
 };
 
 export const choiceFieldSelector: INodeProperties = {
-	displayName: 'View Choice Field',
+	displayName: 'View Choice Field Name or ID',
 	name: 'viewChoiceField',
 	type: 'options',
 	typeOptions: {
@@ -370,7 +370,7 @@ export const choiceFieldSelector: INodeProperties = {
 		},
 	},
 	default: '',
-	description: 'Select a choice field to view its available options with values. This helps you find the correct integer value to use when setting choice fields.',
+	description: 'Select a choice field to view its available options with values. This helps you find the correct integer value to use when setting choice fields. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 	placeholder: 'Select a field...',
 };
 
@@ -439,7 +439,7 @@ export const createOperationFields: INodeProperties[] = [
 				name: 'field',
 				values: [
 					{
-						displayName: 'Field Name',
+						displayName: 'Field Name or ID',
 						name: 'name',
 						type: 'options',
 						typeOptions: {
@@ -540,7 +540,7 @@ export const getOperationFields: INodeProperties[] = [
 				name: 'key',
 				values: [
 					{
-						displayName: 'Key Name',
+						displayName: 'Key Name or ID',
 						name: 'name',
 						type: 'options',
 						typeOptions: {
@@ -599,7 +599,7 @@ export const upsertOperationFields: INodeProperties[] = [
 				name: 'key',
 				values: [
 					{
-						displayName: 'Key Name',
+						displayName: 'Key Name or ID',
 						name: 'name',
 						type: 'options',
 						typeOptions: {
@@ -666,7 +666,7 @@ export const upsertOperationFields: INodeProperties[] = [
 				name: 'field',
 				values: [
 					{
-						displayName: 'Field Name',
+						displayName: 'Field Name or ID',
 						name: 'name',
 						type: 'options',
 						typeOptions: {
@@ -811,21 +811,6 @@ export const shareOperationFields: INodeProperties[] = [
 		type: 'multiOptions',
 		options: [
 			{
-				name: 'Read',
-				value: 'ReadAccess',
-				description: 'Read access to the record',
-			},
-			{
-				name: 'Write',
-				value: 'WriteAccess',
-				description: 'Write access to the record',
-			},
-			{
-				name: 'Delete',
-				value: 'DeleteAccess',
-				description: 'Delete access to the record',
-			},
-			{
 				name: 'Append',
 				value: 'AppendAccess',
 				description: 'Append access to the record',
@@ -839,6 +824,16 @@ export const shareOperationFields: INodeProperties[] = [
 				name: 'Assign',
 				value: 'AssignAccess',
 				description: 'Assign access to the record',
+			},
+			{
+				name: 'Delete',
+				value: 'DeleteAccess',
+				description: 'Delete access to the record',
+			},
+			{
+				name: 'Read',
+				value: 'ReadAccess',
+				description: 'Read access to the record',
 			},
 			{
 				name: 'Share',
@@ -1113,7 +1108,7 @@ export const updateOperationFields: INodeProperties[] = [
 				name: 'field',
 				values: [
 					{
-						displayName: 'Field Name',
+						displayName: 'Field Name or ID',
 						name: 'name',
 						type: 'options',
 						typeOptions: {
@@ -1261,30 +1256,6 @@ export const webhookOperationDescription: INodeProperties = {
 	},
 	options: [
 		{
-			name: 'Register Endpoint',
-			value: 'registerEndpoint',
-			description: 'Create a new webhook endpoint (ServiceEndpoint) that can be reused',
-			action: 'Register a webhook endpoint',
-		},
-		{
-			name: 'Register Step',
-			value: 'registerWebhookStep',
-			description: 'Register a step to link endpoint with a table/message',
-			action: 'Register a webhook step',
-		},
-		{
-			name: 'List Endpoints',
-			value: 'listEndpoints',
-			description: 'List all webhook endpoints',
-			action: 'List webhook endpoints',
-		},
-		{
-			name: 'List Endpoint Steps',
-			value: 'listEndpointSteps',
-			description: 'List SDK message processing steps for an endpoint',
-			action: 'List endpoint steps',
-		},
-		{
 			name: 'Delete Endpoint',
 			value: 'deleteEndpoint',
 			description: 'Delete a webhook endpoint and all its associated steps',
@@ -1297,10 +1268,34 @@ export const webhookOperationDescription: INodeProperties = {
 			action: 'Delete a step',
 		},
 		{
+			name: 'List Endpoint Steps',
+			value: 'listEndpointSteps',
+			description: 'List SDK message processing steps for an endpoint',
+			action: 'List endpoint steps',
+		},
+		{
+			name: 'List Endpoints',
+			value: 'listEndpoints',
+			description: 'List all webhook endpoints',
+			action: 'List webhook endpoints',
+		},
+		{
 			name: 'List SDK Message Filters',
 			value: 'listSdkMessageFilters',
 			description: 'List SDK message filters for a table',
 			action: 'List SDK message filters',
+		},
+		{
+			name: 'Register Endpoint',
+			value: 'registerEndpoint',
+			description: 'Create a new webhook endpoint (ServiceEndpoint) that can be reused',
+			action: 'Register a webhook endpoint',
+		},
+		{
+			name: 'Register Step',
+			value: 'registerWebhookStep',
+			description: 'Register a step to link endpoint with a table/message',
+			action: 'Register a webhook step',
 		},
 	],
 	default: 'registerEndpoint',
@@ -1393,11 +1388,11 @@ export const webhookOperationFields: INodeProperties[] = [
 			},
 		},
 		options: [
-			{ name: 'Create', value: 'Create' },
-			{ name: 'Update', value: 'Update' },
-			{ name: 'Delete', value: 'Delete' },
 			{ name: 'Assign', value: 'Assign' },
+			{ name: 'Create', value: 'Create' },
+			{ name: 'Delete', value: 'Delete' },
 			{ name: 'SetState', value: 'SetState' },
+			{ name: 'Update', value: 'Update' },
 		],
 		default: 'Create',
 		description: 'Dataverse operation to trigger the webhook',
@@ -1591,7 +1586,7 @@ export const pluginOperationFields: INodeProperties[] = [
 		},
 		default: '',
 		required: true,
-		description: 'Base64-encoded DLL content. Use an expression like {{ $binary.file.data }} if reading from a file node, or paste the base64 string directly',
+		description: 'Base64-encoded DLL content. Use an expression like {{ $binary.file.data }} if reading from a file node, or paste the base64 string directly.',
 		placeholder: 'e.g. {{ $binary.file.data }}',
 	},
 	{
