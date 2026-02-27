@@ -46,6 +46,12 @@ export const operationDescription: INodeProperties = {
 	},
 	options: [
 		{
+			name: 'Assign',
+			value: 'assign',
+			description: 'Assign a record to a user or team',
+			action: 'Assign a record',
+		},
+		{
 			name: 'Create',
 			value: 'create',
 			description: 'Create a new record',
@@ -952,6 +958,110 @@ export const revokeAccessOperationFields: INodeProperties[] = [
 			},
 		},
 		description: 'Name of the team (will lookup the GUID)',
+		placeholder: 'e.g. Sales Team',
+	},
+];
+
+export const assignOperationFields: INodeProperties[] = [
+	{
+		displayName: 'Assignee Type',
+		name: 'assigneeType',
+		type: 'options',
+		options: [
+			{
+				name: 'User',
+				value: 'systemuser',
+				description: 'Assign to a user',
+			},
+			{
+				name: 'Team',
+				value: 'team',
+				description: 'Assign to a team',
+			},
+		],
+		default: 'systemuser',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['assign'],
+			},
+		},
+		description: 'Type of assignee (user or team)',
+	},
+	{
+		displayName: 'Assignee ID Type',
+		name: 'assigneeIdType',
+		type: 'options',
+		options: [
+			{
+				name: 'GUID',
+				value: 'guid',
+				description: 'Use the assignee ID (GUID)',
+			},
+			{
+				name: 'UPN (User Principal Name)',
+				value: 'upn',
+				description: 'Use email/UPN (will lookup the GUID)',
+			},
+		],
+		default: 'upn',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['assign'],
+				assigneeType: ['systemuser'],
+			},
+		},
+		description: 'How to identify the user',
+	},
+	{
+		displayName: 'Assignee ID (GUID)',
+		name: 'assigneeId',
+		type: 'string',
+		required: true,
+		default: '',
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['assign'],
+				assigneeIdType: ['guid'],
+			},
+		},
+		description: 'GUID of the user or team to assign to',
+		placeholder: 'e.g. 00000000-0000-0000-0000-000000000000',
+	},
+	{
+		displayName: 'User Principal Name (Email)',
+		name: 'assigneeUpn',
+		type: 'string',
+		required: true,
+		default: '',
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['assign'],
+				assigneeIdType: ['upn'],
+			},
+		},
+		description: 'Email address or User Principal Name of the user to assign to',
+		placeholder: 'e.g. user@example.com',
+	},
+	{
+		displayName: 'Team Name',
+		name: 'assigneeTeamName',
+		type: 'string',
+		required: true,
+		default: '',
+		displayOptions: {
+			show: {
+				resource: ['record'],
+				operation: ['assign'],
+				assigneeType: ['team'],
+			},
+		},
+		description: 'Name of the team to assign to (will lookup the GUID)',
 		placeholder: 'e.g. Sales Team',
 	},
 ];

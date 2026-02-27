@@ -22,6 +22,7 @@ import {
 	upsertOperationFields,
 	shareOperationFields,
 	revokeAccessOperationFields,
+	assignOperationFields,
 	optionsDescription,
 	sqlQueryFields,
 	sqlOperationDescription,
@@ -44,6 +45,7 @@ import {
 	shareRecord,
 	listSharedUsers,
 	revokeAccess,
+	assignRecord,
 } from './operations/RecordOperations';
 import {
 	listGlobalChoices,
@@ -79,7 +81,7 @@ import {
 
 export type RecordIdType = 'id' | 'alternateKey';
 export type QueryType = 'odata' | 'fetchxml';
-export type Operation = 'create' | 'delete' | 'get' | 'getMany' | 'update' | 'upsert' | 'shareAccessAdd' | 'shareAccessList' | 'shareAccessRevoke' | 'list' | 'addOption' | 'updateOption' | 'deleteOption' | 'executeQuery' | 'registerEndpoint' | 'registerWebhookStep' | 'listEndpoints' | 'deleteEndpoint' | 'listEndpointSteps' | 'deleteStep' | 'listSdkMessageFilters' | 'uploadPluginAssembly' | 'registerPluginStep' | 'listPluginAssemblies' | 'deletePluginAssembly' | 'uploadWebResource' | 'updateWebResource' | 'listWebResources' | 'deleteWebResource';
+export type Operation = 'assign' | 'create' | 'delete' | 'get' | 'getMany' | 'update' | 'upsert' | 'shareAccessAdd' | 'shareAccessList' | 'shareAccessRevoke' | 'list' | 'addOption' | 'updateOption' | 'deleteOption' | 'executeQuery' | 'registerEndpoint' | 'registerWebhookStep' | 'listEndpoints' | 'deleteEndpoint' | 'listEndpointSteps' | 'deleteStep' | 'listSdkMessageFilters' | 'uploadPluginAssembly' | 'registerPluginStep' | 'listPluginAssemblies' | 'deletePluginAssembly' | 'uploadWebResource' | 'updateWebResource' | 'listWebResources' | 'deleteWebResource';
 
 export class Dataverse implements INodeType {
 	description: INodeTypeDescription = {
@@ -130,6 +132,7 @@ export class Dataverse implements INodeType {
 			...upsertOperationFields,
 			...shareOperationFields,
 			...revokeAccessOperationFields,
+			...assignOperationFields,
 			...getManyOperationFields,
 			...globalChoiceOperationFields,
 			...sqlQueryFields,
@@ -200,6 +203,12 @@ export class Dataverse implements INodeType {
 					let result: INodeExecutionData | INodeExecutionData[];
 
 					switch (operation) {
+						case 'assign': {
+							const assignResult = await assignRecord.call(this, table, i);
+							result = { json: assignResult, pairedItem: { item: i } };
+							break;
+						}
+
 						case 'create': {
 							const createResult = await createRecord.call(this, table, i);
 							result = { json: createResult, pairedItem: { item: i } };

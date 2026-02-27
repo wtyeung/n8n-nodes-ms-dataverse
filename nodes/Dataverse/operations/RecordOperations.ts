@@ -778,3 +778,118 @@ export async function revokeAccess(
 		principalType,
 	};
 }
+
+/**
+ * Assign a record to a user or team
+ */
+export async function assignRecord(
+	this: IExecuteFunctions,
+	table: string,
+	itemIndex: number,
+): Promise<IDataObject> {
+	const recordIdType = this.getNodeParameter('recordIdType', itemIndex) as string;
+	const assigneeType = this.getNodeParameter('assigneeType', itemIndex) as string;
+
+	// Get record ID
+	let recordId = '';
+	if (recordIdType === 'id') {
+		recordId = this.getNodeParameter('recordId', itemIndex) as string;
+	} else {
+		const alternateKeys = this.getNodeParameter('alternateKeys.alternateKey', itemIndex, []) as AlternateKey[];
+		if (alternateKeys.length === 0) {
+			throw new Error('At least one alternate key must be provided');
+		}
+		// For Assign, we need the actual GUID, so we need to fetch it first
+		const recordIdentifier = buildRecordIdentifier('alternateKey', undefined, alternateKeys);
+		const recordResponse = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			`/${table}(${recordIdentifier})`,
+			undefined,
+			{ $select: `${table}id` },
+			itemIndex,
+		)) as IDataObject;
+		recordId = recordResponse[`${table}id`] as string;
+	}
+
+	// Get assignee ID
+	let assigneeId = '';
+
+	if (assigneeType === 'systemuser') {
+		const assigneeIdType = this.getNodeParameter('assigneeIdType', itemIndex) as string;
+		if (assigneeIdType === 'guid') {
+			assigneeId = this.getNodeParameter('assigneeId', itemIndex) as string;
+		} else {
+			// Lookup user by UPN
+			const upn = this.getNodeParameter('assigneeUpn', itemIndex) as string;
+			const userResponse = (await dataverseApiRequest.call(
+				this,
+				'GET',
+				'/systemusers',
+				undefined,
+				{
+					$select: 'systemuserid',
+					$filter: `domainname eq '${upn}'`,
+					$top: '1',
+				},
+				itemIndex,
+			)) as DataverseApiResponse;
+
+			if (!userResponse.value || userResponse.value.length === 0) {
+				throw new Error(`User with UPN '${upn}' not found`);
+			}
+
+			assigneeId = (userResponse.value[0] as IDataObject).systemuserid as string;
+		}
+	} else {
+		// Lookup team by name
+		const teamName = this.getNodeParameter('assigneeTeamName', itemIndex) as string;
+		const teamResponse = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			'/teams',
+			undefined,
+			{
+				$select: 'teamid',
+				$filter: `name eq '${teamName}'`,
+				$top: '1',
+			},
+			itemIndex,
+		)) as DataverseApiResponse;
+
+		if (!teamResponse.value || teamResponse.value.length === 0) {
+			throw new Error(`Team with name '${teamName}' not found`);
+		}
+
+		assigneeId = (teamResponse.value[0] as IDataObject).teamid as string;
+	}
+
+	// Build Assign request
+	const body = {
+		Target: {
+			'@odata.type': `Microsoft.Dynamics.CRM.${table}`,
+			[`${table}id`]: recordId,
+		},
+		Assignee: {
+			'@odata.type': `Microsoft.Dynamics.CRM.${assigneeType}`,
+			[`${assigneeType}id`]: assigneeId,
+		},
+	};
+
+	// Execute Assign action
+	await dataverseApiRequest.call(
+		this,
+		'POST',
+		'/Assign',
+		body,
+		undefined,
+		itemIndex,
+	);
+
+	return {
+		success: true,
+		recordId,
+		assigneeId,
+		assigneeType,
+	};
+}

@@ -30,6 +30,7 @@ This node supports the following operations on Dataverse records:
 
 ### Record Operations
 
+- **Assign**: Assign a record to a user or team (change ownership)
 - **Create**: Create a new record in a table
 - **Delete**: Delete a record by ID or alternate key
 - **Get**: Retrieve a single record by ID or alternate key
