@@ -484,7 +484,7 @@ export const getOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['get', 'update', 'delete', 'shareAccessAdd', 'shareAccessList', 'shareAccessRevoke'],
+				operation: ['assign', 'get', 'update', 'delete', 'shareAccessAdd', 'shareAccessList', 'shareAccessRevoke'],
 			},
 		},
 		options: [
@@ -509,7 +509,7 @@ export const getOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['get', 'delete', 'update', 'shareAccessAdd', 'shareAccessList', 'shareAccessRevoke'],
+				operation: ['assign', 'get', 'delete', 'update', 'shareAccessAdd', 'shareAccessList', 'shareAccessRevoke'],
 				recordIdType: ['id'],
 			},
 		},
@@ -530,7 +530,7 @@ export const getOperationFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['record'],
-				operation: ['get', 'update', 'delete', 'shareAccessAdd', 'shareAccessList', 'shareAccessRevoke'],
+				operation: ['assign', 'get', 'update', 'delete', 'shareAccessAdd', 'shareAccessList', 'shareAccessRevoke'],
 				recordIdType: ['alternateKey'],
 			},
 		},
