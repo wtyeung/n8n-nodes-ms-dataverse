@@ -999,6 +999,7 @@ export async function getChoiceFieldOptions(
  */
 export async function getSolutions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 	try {
+		// Query solutions table - only unmanaged solutions can have new tables added
 		const response = (await dataverseApiRequest.call(
 			this,
 			'GET',
@@ -1006,8 +1007,9 @@ export async function getSolutions(this: ILoadOptionsFunctions): Promise<INodePr
 			undefined,
 			{
 				$select: 'solutionid,uniquename,friendlyname,ismanaged',
-				$filter: 'isvisible eq true',
+				$filter: 'ismanaged eq false',
 				$orderby: 'friendlyname asc',
+				$top: 100,
 			},
 		)) as DataverseApiResponse;
 
@@ -1018,15 +1020,42 @@ export async function getSolutions(this: ILoadOptionsFunctions): Promise<INodePr
 			ismanaged: boolean;
 		}>;
 
-		return solutions.map((solution) => ({
-			name: `${solution.friendlyname}${solution.ismanaged ? ' (Managed)' : ''}`,
-			value: solution.uniquename,
-		}));
+		if (!solutions || solutions.length === 0) {
+			return [
+				{
+					name: 'ℹ️ No unmanaged solutions found - creating in default solution',
+					value: '',
+				},
+			];
+		}
+
+		// Add option to use default solution
+		const options: INodePropertyOptions[] = [
+			{
+				name: '(Default Solution)',
+				value: '',
+			},
+		];
+
+		// Add all unmanaged solutions
+		solutions.forEach((solution) => {
+			options.push({
+				name: solution.friendlyname,
+				value: solution.uniquename,
+			});
+		});
+
+		return options;
 	} catch (error) {
 		const errorMsg = error instanceof Error ? error.message : String(error);
+		// Return helpful error with option to proceed without solution
 		return [
 			{
-				name: `⚠️ Error loading solutions: ${errorMsg}`,
+				name: '(Default Solution - recommended)',
+				value: '',
+			},
+			{
+				name: `⚠️ Could not load solutions: ${errorMsg}`,
 				value: '',
 			},
 		];
