@@ -2427,13 +2427,11 @@ export const tableOperationFields: INodeProperties[] = [
 				name: 'field',
 				values: [
 					{
-						displayName: 'Schema Name',
-						name: 'schemaName',
+						displayName: 'Description',
+						name: 'description',
 						type: 'string',
 						default: '',
-						required: true,
-						description: 'Schema name for the field (e.g., new_fieldname)',
-						placeholder: 'e.g. new_fieldname',
+						description: 'Description of the field',
 					},
 					{
 						displayName: 'Display Name',
@@ -2486,11 +2484,52 @@ export const tableOperationFields: INodeProperties[] = [
 						description: 'The type of field to create',
 					},
 					{
-						displayName: 'Description',
-						name: 'description',
-						type: 'string',
-						default: '',
-						description: 'Description of the field',
+						displayName: 'Max Length',
+						name: 'maxLength',
+						type: 'number',
+						displayOptions: {
+							show: {
+								fieldType: ['String', 'Memo'],
+							},
+						},
+						default: 100,
+						description: 'Maximum length for string/memo fields',
+					},
+					{
+						displayName: 'Max Value',
+						name: 'maxValue',
+						type: 'number',
+						displayOptions: {
+							show: {
+								fieldType: ['Integer', 'Decimal', 'Money'],
+							},
+						},
+						default: 1000000000,
+						description: 'Maximum value',
+					},
+					{
+						displayName: 'Min Value',
+						name: 'minValue',
+						type: 'number',
+						displayOptions: {
+							show: {
+								fieldType: ['Integer', 'Decimal', 'Money'],
+							},
+						},
+						default: 0,
+						description: 'Minimum value',
+					},
+					{
+						displayName: 'Precision',
+						name: 'precision',
+						type: 'number',
+						displayOptions: {
+							show: {
+								fieldType: ['Decimal', 'Money'],
+							},
+						},
+						default: 2,
+						description: 'Number of decimal places',
 					},
 					{
 						displayName: 'Required Level',
@@ -2514,52 +2553,13 @@ export const tableOperationFields: INodeProperties[] = [
 						description: 'Whether the field is required',
 					},
 					{
-						displayName: 'Max Length',
-						name: 'maxLength',
-						type: 'number',
-						displayOptions: {
-							show: {
-								fieldType: ['String', 'Memo'],
-							},
-						},
-						default: 100,
-						description: 'Maximum length for string/memo fields',
-					},
-					{
-						displayName: 'Precision',
-						name: 'precision',
-						type: 'number',
-						displayOptions: {
-							show: {
-								fieldType: ['Decimal', 'Money'],
-							},
-						},
-						default: 2,
-						description: 'Number of decimal places',
-					},
-					{
-						displayName: 'Min Value',
-						name: 'minValue',
-						type: 'number',
-						displayOptions: {
-							show: {
-								fieldType: ['Integer', 'Decimal', 'Money'],
-							},
-						},
-						default: 0,
-						description: 'Minimum value',
-					},
-					{
-						displayName: 'Max Value',
-						name: 'maxValue',
-						type: 'number',
-						displayOptions: {
-							show: {
-								fieldType: ['Integer', 'Decimal', 'Money'],
-							},
-						},
-						default: 1000000000,
-						description: 'Maximum value',
+						displayName: 'Schema Name',
+						name: 'schemaName',
+						type: 'string',
+						default: '',
+						required: true,
+						description: 'Schema name for the field (e.g., new_fieldname)',
+						placeholder: 'e.g. new_fieldname',
 					},
 				],
 			},
