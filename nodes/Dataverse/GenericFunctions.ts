@@ -995,6 +995,59 @@ export async function getChoiceFieldOptions(
 }
 
 /**
+ * Get list of global choices for dropdown
+ */
+export async function getGlobalChoicesForDropdown(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+	try {
+		const response = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			'/GlobalOptionSetDefinitions',
+			undefined,
+			{
+				$select: 'Name,DisplayName',
+				$orderby: 'Name asc',
+				$top: 200,
+			},
+		)) as DataverseApiResponse;
+
+		const choices = response.value as Array<{
+			Name: string;
+			DisplayName: {
+				UserLocalizedLabel: {
+					Label: string;
+				};
+			};
+		}>;
+
+		if (!choices || choices.length === 0) {
+			return [
+				{
+					name: 'No global choices found',
+					value: '',
+				},
+			];
+		}
+
+		return choices.map((choice) => {
+			const displayName = choice.DisplayName?.UserLocalizedLabel?.Label || choice.Name;
+			return {
+				name: `${displayName} (${choice.Name})`,
+				value: choice.Name,
+			};
+		});
+	} catch (error) {
+		const errorMsg = error instanceof Error ? error.message : String(error);
+		return [
+			{
+				name: `⚠️ Error loading global choices: ${errorMsg}`,
+				value: '',
+			},
+		];
+	}
+}
+
+/**
  * Get list of solutions for dropdown
  */
 export async function getSolutions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {

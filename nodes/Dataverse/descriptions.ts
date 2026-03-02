@@ -2056,7 +2056,10 @@ export const globalChoiceOperationFields: INodeProperties[] = [
 	{
 		displayName: 'Choice Name',
 		name: 'choiceName',
-		type: 'string',
+		type: 'options',
+		typeOptions: {
+			loadOptionsMethod: 'getGlobalChoicesForDropdown',
+		},
 		displayOptions: {
 			show: {
 				resource: ['globalChoice'],
@@ -2065,7 +2068,7 @@ export const globalChoiceOperationFields: INodeProperties[] = [
 		},
 		default: '',
 		required: true,
-		description: 'Logical name of the global choice',
+		description: 'The global choice to work with. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 		placeholder: 'e.g. new_colors',
 	},
 	// Create Global Choice

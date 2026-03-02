@@ -7,7 +7,7 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import { searchTables, getTableFieldsForDisplay, getTableFieldNames, getAlternateKeyFields, getChoiceFieldOptions, getSolutions } from './GenericFunctions';
+import { searchTables, getTableFieldsForDisplay, getTableFieldNames, getAlternateKeyFields, getChoiceFieldOptions, getSolutions, getGlobalChoicesForDropdown } from './GenericFunctions';
 import {
 	resourceDescription,
 	operationDescription,
@@ -165,6 +165,7 @@ export class Dataverse implements INodeType {
 			getAlternateKeyFields,
 			getChoiceFieldOptions,
 			getSolutions,
+			getGlobalChoicesForDropdown,
 		},
 	};
 
