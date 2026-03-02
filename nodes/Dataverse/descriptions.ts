@@ -2301,6 +2301,22 @@ export const relationshipOperationFields: INodeProperties[] = [
 
 export const tableOperationFields: INodeProperties[] = [
 	{
+		displayName: 'Solution Name or ID',
+		name: 'solutionUniqueName',
+		type: 'options',
+		typeOptions: {
+			loadOptionsMethod: 'getSolutions',
+		},
+		displayOptions: {
+			show: {
+				resource: ['table'],
+				operation: ['create'],
+			},
+		},
+		default: '',
+		description: 'The solution to create the table in. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+	},
+	{
 		displayName: 'Schema Name',
 		name: 'schemaName',
 		type: 'string',

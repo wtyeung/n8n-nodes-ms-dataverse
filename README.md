@@ -87,12 +87,15 @@ Create custom tables with field definitions:
 
 - **Create**: Create a new custom table with fields
 
-**Required Parameters:**
+**Parameters:**
+- **Solution Name or ID**: (Optional) The solution to create the table in. Select from available solutions or leave empty for default solution.
 - **Schema Name**: The schema name for the table (e.g., `new_customtable`)
 - **Display Name**: The display name for the table
 - **Plural Display Name**: The plural display name
 - **Primary Name Field**: Schema name for the primary name field (e.g., `new_name`)
 - **Primary Name Display Name**: Display name for the primary name field
+
+**Best Practice:** Always specify a solution for production environments to enable proper Application Lifecycle Management (ALM).
 
 **Additional Fields:**
 Define custom fields with the following types:

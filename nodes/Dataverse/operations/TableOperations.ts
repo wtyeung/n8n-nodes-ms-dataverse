@@ -20,6 +20,7 @@ export async function createTable(
 	this: IExecuteFunctions,
 	itemIndex: number,
 ): Promise<IDataObject> {
+	const solutionUniqueName = this.getNodeParameter('solutionUniqueName', itemIndex, '', { extractValue: true }) as string;
 	const schemaName = this.getNodeParameter('schemaName', itemIndex) as string;
 	const displayName = this.getNodeParameter('displayName', itemIndex) as string;
 	const pluralDisplayName = this.getNodeParameter('pluralDisplayName', itemIndex) as string;
@@ -106,12 +107,14 @@ export async function createTable(
 	}
 
 	// Create the table
+	const queryParams = solutionUniqueName ? { SolutionUniqueName: solutionUniqueName } : undefined;
+	
 	const response = await dataverseApiRequest.call(
 		this,
 		'POST',
 		'/EntityDefinitions',
 		tableDefinition,
-		undefined,
+		queryParams,
 		itemIndex,
 	);
 
@@ -119,6 +122,7 @@ export async function createTable(
 		success: true,
 		schemaName,
 		displayName,
+		solutionUniqueName: solutionUniqueName || 'Default',
 		tableId: (response as IDataObject).MetadataId,
 		fieldsCreated: 1 + additionalFields.length,
 	};

@@ -994,3 +994,42 @@ export async function getChoiceFieldOptions(
 	}
 }
 
+/**
+ * Get list of solutions for dropdown
+ */
+export async function getSolutions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+	try {
+		const response = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			'/solutions',
+			undefined,
+			{
+				$select: 'solutionid,uniquename,friendlyname,ismanaged',
+				$filter: 'isvisible eq true',
+				$orderby: 'friendlyname asc',
+			},
+		)) as DataverseApiResponse;
+
+		const solutions = response.value as Array<{
+			solutionid: string;
+			uniquename: string;
+			friendlyname: string;
+			ismanaged: boolean;
+		}>;
+
+		return solutions.map((solution) => ({
+			name: `${solution.friendlyname}${solution.ismanaged ? ' (Managed)' : ''}`,
+			value: solution.uniquename,
+		}));
+	} catch (error) {
+		const errorMsg = error instanceof Error ? error.message : String(error);
+		return [
+			{
+				name: `⚠️ Error loading solutions: ${errorMsg}`,
+				value: '',
+			},
+		];
+	}
+}
+
