@@ -2222,6 +2222,24 @@ export const globalChoiceOperationFields: INodeProperties[] = [
 
 export const relationshipOperationFields: INodeProperties[] = [
 	{
+		displayName: 'Relationship Name',
+		name: 'relationshipName',
+		type: 'options',
+		typeOptions: {
+			loadOptionsMethod: 'getRelationships',
+		},
+		displayOptions: {
+			show: {
+				resource: ['relationship'],
+				operation: ['associate', 'disassociate'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'The many-to-many relationship. Choose from the list, or specify a name using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+		placeholder: 'e.g. contact_account_customers',
+	},
+	{
 		displayName: 'Primary Table Name or ID',
 		name: 'primaryTable',
 		type: 'options',
@@ -2239,6 +2257,29 @@ export const relationshipOperationFields: INodeProperties[] = [
 		description: 'The primary table (source record). Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 	},
 	{
+		displayName: 'Primary Record ID Type',
+		name: 'primaryRecordIdType',
+		type: 'options',
+		options: [
+			{
+				name: 'ID (GUID)',
+				value: 'id',
+			},
+			{
+				name: 'Alternate Key',
+				value: 'alternateKey',
+			},
+		],
+		displayOptions: {
+			show: {
+				resource: ['relationship'],
+				operation: ['associate', 'disassociate'],
+			},
+		},
+		default: 'id',
+		description: 'Whether to identify the primary record by GUID or alternate key',
+	},
+	{
 		displayName: 'Primary Record ID',
 		name: 'primaryRecordId',
 		type: 'string',
@@ -2246,6 +2287,7 @@ export const relationshipOperationFields: INodeProperties[] = [
 			show: {
 				resource: ['relationship'],
 				operation: ['associate', 'disassociate'],
+				primaryRecordIdType: ['id'],
 			},
 		},
 		default: '',
@@ -2254,19 +2296,48 @@ export const relationshipOperationFields: INodeProperties[] = [
 		placeholder: 'e.g. 00000000-0000-0000-0000-000000000000',
 	},
 	{
-		displayName: 'Relationship Name',
-		name: 'relationshipName',
-		type: 'string',
+		displayName: 'Primary Record Alternate Keys',
+		name: 'primaryAlternateKeys',
+		type: 'fixedCollection',
+		typeOptions: {
+			multipleValues: true,
+		},
 		displayOptions: {
 			show: {
 				resource: ['relationship'],
 				operation: ['associate', 'disassociate'],
+				primaryRecordIdType: ['alternateKey'],
 			},
 		},
-		default: '',
-		required: true,
-		description: 'The schema name of the many-to-many relationship (e.g., contact_account_customers)',
-		placeholder: 'e.g. contact_account_customers',
+		default: {},
+		placeholder: 'Add Alternate Key',
+		description: 'Alternate key fields to identify the primary record',
+		options: [
+			{
+				displayName: 'Key',
+				name: 'key',
+				values: [
+					{
+						displayName: 'Name',
+						name: 'name',
+						type: 'string',
+						default: '',
+						required: true,
+						description: 'The name of the alternate key field',
+						placeholder: 'e.g. emailaddress1',
+					},
+					{
+						displayName: 'Value',
+						name: 'value',
+						type: 'string',
+						default: '',
+						required: true,
+						description: 'The value of the alternate key field',
+						placeholder: 'e.g. user@example.com',
+					},
+				],
+			},
+		],
 	},
 	{
 		displayName: 'Related Table Name or ID',
@@ -2286,6 +2357,29 @@ export const relationshipOperationFields: INodeProperties[] = [
 		description: 'The related table (target record). Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 	},
 	{
+		displayName: 'Related Record ID Type',
+		name: 'relatedRecordIdType',
+		type: 'options',
+		options: [
+			{
+				name: 'ID (GUID)',
+				value: 'id',
+			},
+			{
+				name: 'Alternate Key',
+				value: 'alternateKey',
+			},
+		],
+		displayOptions: {
+			show: {
+				resource: ['relationship'],
+				operation: ['associate', 'disassociate'],
+			},
+		},
+		default: 'id',
+		description: 'Whether to identify the related record by GUID or alternate key',
+	},
+	{
 		displayName: 'Related Record ID',
 		name: 'relatedRecordId',
 		type: 'string',
@@ -2293,12 +2387,57 @@ export const relationshipOperationFields: INodeProperties[] = [
 			show: {
 				resource: ['relationship'],
 				operation: ['associate', 'disassociate'],
+				relatedRecordIdType: ['id'],
 			},
 		},
 		default: '',
 		required: true,
 		description: 'The GUID of the related record to associate/disassociate',
 		placeholder: 'e.g. 00000000-0000-0000-0000-000000000000',
+	},
+	{
+		displayName: 'Related Record Alternate Keys',
+		name: 'relatedAlternateKeys',
+		type: 'fixedCollection',
+		typeOptions: {
+			multipleValues: true,
+		},
+		displayOptions: {
+			show: {
+				resource: ['relationship'],
+				operation: ['associate', 'disassociate'],
+				relatedRecordIdType: ['alternateKey'],
+			},
+		},
+		default: {},
+		placeholder: 'Add Alternate Key',
+		description: 'Alternate key fields to identify the related record',
+		options: [
+			{
+				displayName: 'Key',
+				name: 'key',
+				values: [
+					{
+						displayName: 'Name',
+						name: 'name',
+						type: 'string',
+						default: '',
+						required: true,
+						description: 'The name of the alternate key field',
+						placeholder: 'e.g. emailaddress1',
+					},
+					{
+						displayName: 'Value',
+						name: 'value',
+						type: 'string',
+						default: '',
+						required: true,
+						description: 'The value of the alternate key field',
+						placeholder: 'e.g. user@example.com',
+					},
+				],
+			},
+		],
 	},
 ];
 

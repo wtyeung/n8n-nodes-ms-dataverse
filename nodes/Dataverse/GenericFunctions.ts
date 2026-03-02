@@ -1005,9 +1005,7 @@ export async function getGlobalChoicesForDropdown(this: ILoadOptionsFunctions): 
 			'/GlobalOptionSetDefinitions',
 			undefined,
 			{
-				$select: 'Name,DisplayName',
-				$orderby: 'Name asc',
-				$top: 200,
+				$select: 'Name,DisplayName,Description',
 			},
 		)) as DataverseApiResponse;
 
@@ -1038,9 +1036,96 @@ export async function getGlobalChoicesForDropdown(this: ILoadOptionsFunctions): 
 		});
 	} catch (error) {
 		const errorMsg = error instanceof Error ? error.message : String(error);
+		const isAuthError = errorMsg.includes('401') || errorMsg.includes('403') || errorMsg.includes('Unauthorized');
+		
+		if (isAuthError) {
+			return [
+				{
+					name: '⚠️ Authentication failed - global choice list unavailable',
+					value: '',
+				},
+				{
+					name: 'Workaround: Execute the node once, then close and reopen to refresh the list',
+					value: '',
+				},
+				{
+					name: 'Note: You can still type the choice name manually',
+					value: '',
+				},
+			];
+		}
+		
 		return [
 			{
 				name: `⚠️ Error loading global choices: ${errorMsg}`,
+				value: '',
+			},
+			{
+				name: 'Note: You can still type the choice name manually',
+				value: '',
+			},
+		];
+	}
+}
+
+/**
+ * Get list of many-to-many relationships for dropdown
+ */
+export async function getRelationships(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+	try {
+		const response = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			'/RelationshipDefinitions/Microsoft.Dynamics.CRM.ManyToManyRelationshipMetadata',
+			undefined,
+			{
+				$select: 'SchemaName,Entity1LogicalName,Entity2LogicalName',
+			},
+		)) as DataverseApiResponse;
+
+		const relationships = response.value as Array<{
+			SchemaName: string;
+			Entity1LogicalName: string;
+			Entity2LogicalName: string;
+		}>;
+
+		if (!relationships || relationships.length === 0) {
+			return [
+				{
+					name: 'No many-to-many relationships found',
+					value: '',
+				},
+			];
+		}
+
+		return relationships.map((rel) => ({
+			name: `${rel.SchemaName} (${rel.Entity1LogicalName} ↔ ${rel.Entity2LogicalName})`,
+			value: rel.SchemaName,
+		}));
+	} catch (error) {
+		const errorMsg = error instanceof Error ? error.message : String(error);
+		const isAuthError = errorMsg.includes('401') || errorMsg.includes('403') || errorMsg.includes('Unauthorized');
+		
+		if (isAuthError) {
+			return [
+				{
+					name: '⚠️ Authentication failed - relationship list unavailable',
+					value: '',
+				},
+				{
+					name: 'Note: You can still type the relationship name manually',
+					value: '',
+				},
+			];
+		}
+		
+		return [
+			{
+				name: `⚠️ Error loading relationships: ${errorMsg}`,
+				value: '',
+			},
+			{
+				name: 'Note: You can still type the relationship name manually',
 				value: '',
 			},
 		];

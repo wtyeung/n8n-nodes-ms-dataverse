@@ -20,7 +20,6 @@ export async function listGlobalChoices(
 		undefined,
 		{
 			$select: 'Name,DisplayName,Description',
-			$expand: 'Options($select=Label,Value)',
 		},
 		itemIndex,
 	)) as DataverseApiResponse;
@@ -40,13 +39,14 @@ export async function getGlobalChoice(
 ): Promise<IDataObject> {
 	const choiceName = this.getNodeParameter('choiceName', itemIndex) as string;
 
+	// Use type cast to OptionSetMetadata to access Options
 	const response = (await dataverseApiRequest.call(
 		this,
 		'GET',
-		`/GlobalOptionSetDefinitions(Name='${choiceName}')`,
+		`/GlobalOptionSetDefinitions(Name='${choiceName}')/Microsoft.Dynamics.CRM.OptionSetMetadata`,
 		undefined,
 		{
-			$expand: 'Options($select=Label,Value)',
+			$select: 'Name,DisplayName,Description,Options',
 		},
 		itemIndex,
 	)) as IDataObject;
