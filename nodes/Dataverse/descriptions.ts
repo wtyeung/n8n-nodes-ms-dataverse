@@ -27,6 +27,10 @@ export const resourceDescription: INodeProperties = {
 			value: 'sql',
 		},
 		{
+			name: 'Table',
+			value: 'table',
+		},
+		{
 			name: 'Web Resource',
 			value: 'webresource',
 		},
@@ -195,6 +199,27 @@ export const relationshipOperationDescription: INodeProperties = {
 		},
 	],
 	default: 'associate',
+};
+
+export const tableOperationDescription: INodeProperties = {
+	displayName: 'Operation',
+	name: 'operation',
+	type: 'options',
+	noDataExpression: true,
+	displayOptions: {
+		show: {
+			resource: ['table'],
+		},
+	},
+	options: [
+		{
+			name: 'Create',
+			value: 'create',
+			description: 'Create a new custom table with fields',
+			action: 'Create a table',
+		},
+	],
+	default: 'create',
 };
 
 export const optionsDescription: INodeProperties = {
@@ -2271,5 +2296,257 @@ export const relationshipOperationFields: INodeProperties[] = [
 		required: true,
 		description: 'The GUID of the related record to associate/disassociate',
 		placeholder: 'e.g. 00000000-0000-0000-0000-000000000000',
+	},
+];
+
+export const tableOperationFields: INodeProperties[] = [
+	{
+		displayName: 'Schema Name',
+		name: 'schemaName',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['table'],
+				operation: ['create'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'The schema name for the table (e.g., new_customtable). Must start with a publisher prefix.',
+		placeholder: 'e.g. new_customtable',
+	},
+	{
+		displayName: 'Display Name',
+		name: 'displayName',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['table'],
+				operation: ['create'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'The display name for the table',
+		placeholder: 'e.g. Custom Table',
+	},
+	{
+		displayName: 'Plural Display Name',
+		name: 'pluralDisplayName',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['table'],
+				operation: ['create'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'The plural display name for the table',
+		placeholder: 'e.g. Custom Tables',
+	},
+	{
+		displayName: 'Description',
+		name: 'description',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['table'],
+				operation: ['create'],
+			},
+		},
+		default: '',
+		description: 'Description of the table',
+		placeholder: 'e.g. This table stores custom data',
+	},
+	{
+		displayName: 'Primary Name Field',
+		name: 'primaryNameField',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['table'],
+				operation: ['create'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'Schema name for the primary name field (e.g., new_name)',
+		placeholder: 'e.g. new_name',
+	},
+	{
+		displayName: 'Primary Name Display Name',
+		name: 'primaryNameDisplayName',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['table'],
+				operation: ['create'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'Display name for the primary name field',
+		placeholder: 'e.g. Name',
+	},
+	{
+		displayName: 'Additional Fields',
+		name: 'additionalFields',
+		type: 'fixedCollection',
+		typeOptions: {
+			multipleValues: true,
+		},
+		displayOptions: {
+			show: {
+				resource: ['table'],
+				operation: ['create'],
+			},
+		},
+		default: {},
+		placeholder: 'Add Field',
+		description: 'Additional fields to create on the table',
+		options: [
+			{
+				displayName: 'Field',
+				name: 'field',
+				values: [
+					{
+						displayName: 'Schema Name',
+						name: 'schemaName',
+						type: 'string',
+						default: '',
+						required: true,
+						description: 'Schema name for the field (e.g., new_fieldname)',
+						placeholder: 'e.g. new_fieldname',
+					},
+					{
+						displayName: 'Display Name',
+						name: 'displayName',
+						type: 'string',
+						default: '',
+						required: true,
+						description: 'Display name for the field',
+						placeholder: 'e.g. Field Name',
+					},
+					{
+						displayName: 'Field Type',
+						name: 'fieldType',
+						type: 'options',
+						options: [
+							{
+								name: 'Boolean',
+								value: 'Boolean',
+							},
+							{
+								name: 'DateTime',
+								value: 'DateTime',
+							},
+							{
+								name: 'Decimal',
+								value: 'Decimal',
+							},
+							{
+								name: 'Integer',
+								value: 'Integer',
+							},
+							{
+								name: 'Memo',
+								value: 'Memo',
+							},
+							{
+								name: 'Money',
+								value: 'Money',
+							},
+							{
+								name: 'Picklist',
+								value: 'Picklist',
+							},
+							{
+								name: 'String',
+								value: 'String',
+							},
+						],
+						default: 'String',
+						description: 'The type of field to create',
+					},
+					{
+						displayName: 'Description',
+						name: 'description',
+						type: 'string',
+						default: '',
+						description: 'Description of the field',
+					},
+					{
+						displayName: 'Required Level',
+						name: 'requiredLevel',
+						type: 'options',
+						options: [
+							{
+								name: 'None',
+								value: 'None',
+							},
+							{
+								name: 'Recommended',
+								value: 'Recommended',
+							},
+							{
+								name: 'Required',
+								value: 'ApplicationRequired',
+							},
+						],
+						default: 'None',
+						description: 'Whether the field is required',
+					},
+					{
+						displayName: 'Max Length',
+						name: 'maxLength',
+						type: 'number',
+						displayOptions: {
+							show: {
+								fieldType: ['String', 'Memo'],
+							},
+						},
+						default: 100,
+						description: 'Maximum length for string/memo fields',
+					},
+					{
+						displayName: 'Precision',
+						name: 'precision',
+						type: 'number',
+						displayOptions: {
+							show: {
+								fieldType: ['Decimal', 'Money'],
+							},
+						},
+						default: 2,
+						description: 'Number of decimal places',
+					},
+					{
+						displayName: 'Min Value',
+						name: 'minValue',
+						type: 'number',
+						displayOptions: {
+							show: {
+								fieldType: ['Integer', 'Decimal', 'Money'],
+							},
+						},
+						default: 0,
+						description: 'Minimum value',
+					},
+					{
+						displayName: 'Max Value',
+						name: 'maxValue',
+						type: 'number',
+						displayOptions: {
+							show: {
+								fieldType: ['Integer', 'Decimal', 'Money'],
+							},
+						},
+						default: 1000000000,
+						description: 'Maximum value',
+					},
+				],
+			},
+		],
 	},
 ];

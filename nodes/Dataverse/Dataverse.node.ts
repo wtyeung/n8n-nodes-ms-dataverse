@@ -30,6 +30,8 @@ import {
 	globalChoiceOperationFields,
 	relationshipOperationDescription,
 	relationshipOperationFields,
+	tableOperationDescription,
+	tableOperationFields,
 	webhookOperationDescription,
 	webhookOperationFields,
 	pluginOperationDescription,
@@ -62,6 +64,9 @@ import {
 	associateRecords,
 	disassociateRecords,
 } from './operations/RelationshipOperations';
+import {
+	createTable,
+} from './operations/TableOperations';
 import {
 	uploadPluginAssembly,
 	registerPluginStep,
@@ -122,6 +127,7 @@ export class Dataverse implements INodeType {
 			operationDescription,
 			globalChoiceOperationDescription,
 			relationshipOperationDescription,
+			tableOperationDescription,
 			sqlOperationDescription,
 			pluginOperationDescription,
 			...pluginOperationFields,
@@ -143,6 +149,7 @@ export class Dataverse implements INodeType {
 			...getManyOperationFields,
 			...globalChoiceOperationFields,
 			...relationshipOperationFields,
+			...tableOperationFields,
 			...sqlQueryFields,
 			optionsDescription,
 		],
@@ -225,6 +232,24 @@ export class Dataverse implements INodeType {
 							throw new NodeOperationError(
 								this.getNode(),
 								`The operation "${operation}" is not supported for Relationship`,
+							);
+					}
+
+					returnData.push({ json: result, pairedItem: { item: i } });
+				} else if (resource === 'table') {
+					// Handle Table operations
+					let result: IDataObject;
+
+					switch (operation) {
+						case 'create': {
+							result = await createTable.call(this, i);
+							break;
+						}
+
+						default:
+							throw new NodeOperationError(
+								this.getNode(),
+								`The operation "${operation}" is not supported for Table`,
 							);
 					}
 

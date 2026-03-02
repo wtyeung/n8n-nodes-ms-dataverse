@@ -81,6 +81,35 @@ Manage many-to-many relationships between records:
 - Connect products to categories
 - Relate any two entities with a many-to-many relationship
 
+### Table Operations
+
+Create custom tables with field definitions:
+
+- **Create**: Create a new custom table with fields
+
+**Required Parameters:**
+- **Schema Name**: The schema name for the table (e.g., `new_customtable`)
+- **Display Name**: The display name for the table
+- **Plural Display Name**: The plural display name
+- **Primary Name Field**: Schema name for the primary name field (e.g., `new_name`)
+- **Primary Name Display Name**: Display name for the primary name field
+
+**Additional Fields:**
+Define custom fields with the following types:
+- **String**: Text field with configurable max length
+- **Memo**: Multi-line text field
+- **Integer**: Whole number with min/max values
+- **Decimal**: Decimal number with precision
+- **Money**: Currency field with precision
+- **Boolean**: Yes/No field
+- **DateTime**: Date and time field
+- **Picklist**: Choice field (options can be added later)
+
+Each field supports:
+- Display name and description
+- Required level (None, Recommended, Required)
+- Type-specific settings (max length, precision, min/max values)
+
 ### SQL Query via TDS (Read-Only)
 
 - **Execute Query**: Run SQL queries directly against Dataverse using the Tabular Data Stream (TDS) endpoint
