@@ -61,6 +61,26 @@ Manage global choice option sets (reusable picklists across multiple tables):
 - **Delete Option**: Remove an option from a global choice
 - **Delete**: Delete an entire global choice
 
+### Relationship Operations
+
+Manage many-to-many relationships between records:
+
+- **Associate**: Create a many-to-many relationship between two records
+- **Disassociate**: Remove a many-to-many relationship between two records
+
+**Required Parameters:**
+- **Primary Table**: The source table containing the first record
+- **Primary Record ID**: The GUID of the first record
+- **Relationship Name**: The schema name of the many-to-many relationship (e.g., `contact_account_customers`)
+- **Related Table**: The target table containing the second record
+- **Related Record ID**: The GUID of the second record
+
+**Example Use Cases:**
+- Associate a contact with an account
+- Link a user to a team
+- Connect products to categories
+- Relate any two entities with a many-to-many relationship
+
 ### SQL Query via TDS (Read-Only)
 
 - **Execute Query**: Run SQL queries directly against Dataverse using the Tabular Data Stream (TDS) endpoint

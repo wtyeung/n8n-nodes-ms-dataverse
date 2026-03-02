@@ -28,6 +28,8 @@ import {
 	sqlOperationDescription,
 	globalChoiceOperationDescription,
 	globalChoiceOperationFields,
+	relationshipOperationDescription,
+	relationshipOperationFields,
 	webhookOperationDescription,
 	webhookOperationFields,
 	pluginOperationDescription,
@@ -57,6 +59,10 @@ import {
 	deleteGlobalChoice,
 } from './operations/GlobalChoiceOperations';
 import {
+	associateRecords,
+	disassociateRecords,
+} from './operations/RelationshipOperations';
+import {
 	uploadPluginAssembly,
 	registerPluginStep,
 	listPluginAssemblies,
@@ -81,7 +87,7 @@ import {
 
 export type RecordIdType = 'id' | 'alternateKey';
 export type QueryType = 'odata' | 'fetchxml';
-export type Operation = 'assign' | 'create' | 'delete' | 'get' | 'getMany' | 'update' | 'upsert' | 'shareAccessAdd' | 'shareAccessList' | 'shareAccessRevoke' | 'list' | 'addOption' | 'updateOption' | 'deleteOption' | 'executeQuery' | 'registerEndpoint' | 'registerWebhookStep' | 'listEndpoints' | 'deleteEndpoint' | 'listEndpointSteps' | 'deleteStep' | 'listSdkMessageFilters' | 'uploadPluginAssembly' | 'registerPluginStep' | 'listPluginAssemblies' | 'deletePluginAssembly' | 'uploadWebResource' | 'updateWebResource' | 'listWebResources' | 'deleteWebResource';
+export type Operation = 'assign' | 'associate' | 'create' | 'delete' | 'disassociate' | 'get' | 'getMany' | 'update' | 'upsert' | 'shareAccessAdd' | 'shareAccessList' | 'shareAccessRevoke' | 'list' | 'addOption' | 'updateOption' | 'deleteOption' | 'executeQuery' | 'registerEndpoint' | 'registerWebhookStep' | 'listEndpoints' | 'deleteEndpoint' | 'listEndpointSteps' | 'deleteStep' | 'listSdkMessageFilters' | 'uploadPluginAssembly' | 'registerPluginStep' | 'listPluginAssemblies' | 'deletePluginAssembly' | 'uploadWebResource' | 'updateWebResource' | 'listWebResources' | 'deleteWebResource';
 
 export class Dataverse implements INodeType {
 	description: INodeTypeDescription = {
@@ -115,6 +121,7 @@ export class Dataverse implements INodeType {
 			resourceDescription,
 			operationDescription,
 			globalChoiceOperationDescription,
+			relationshipOperationDescription,
 			sqlOperationDescription,
 			pluginOperationDescription,
 			...pluginOperationFields,
@@ -135,6 +142,7 @@ export class Dataverse implements INodeType {
 			...assignOperationFields,
 			...getManyOperationFields,
 			...globalChoiceOperationFields,
+			...relationshipOperationFields,
 			...sqlQueryFields,
 			optionsDescription,
 		],
@@ -194,6 +202,29 @@ export class Dataverse implements INodeType {
 							throw new NodeOperationError(
 								this.getNode(),
 								`The operation "${operation}" is not supported for Global Choice`,
+							);
+					}
+
+					returnData.push({ json: result, pairedItem: { item: i } });
+				} else if (resource === 'relationship') {
+					// Handle Relationship operations
+					let result: IDataObject;
+
+					switch (operation) {
+						case 'associate': {
+							result = await associateRecords.call(this, i);
+							break;
+						}
+
+						case 'disassociate': {
+							result = await disassociateRecords.call(this, i);
+							break;
+						}
+
+						default:
+							throw new NodeOperationError(
+								this.getNode(),
+								`The operation "${operation}" is not supported for Relationship`,
 							);
 					}
 

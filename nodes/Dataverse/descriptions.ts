@@ -19,6 +19,10 @@ export const resourceDescription: INodeProperties = {
 			value: 'record',
 		},
 		{
+			name: 'Relationship',
+			value: 'relationship',
+		},
+		{
 			name: 'SQL Query via TDS (Read-Only)',
 			value: 'sql',
 		},
@@ -164,6 +168,33 @@ export const globalChoiceOperationDescription: INodeProperties = {
 		},
 	],
 	default: 'list',
+};
+
+export const relationshipOperationDescription: INodeProperties = {
+	displayName: 'Operation',
+	name: 'operation',
+	type: 'options',
+	noDataExpression: true,
+	displayOptions: {
+		show: {
+			resource: ['relationship'],
+		},
+	},
+	options: [
+		{
+			name: 'Associate',
+			value: 'associate',
+			description: 'Create a many-to-many relationship between two records',
+			action: 'Associate records',
+		},
+		{
+			name: 'Disassociate',
+			value: 'disassociate',
+			description: 'Remove a many-to-many relationship between two records',
+			action: 'Disassociate records',
+		},
+	],
+	default: 'associate',
 };
 
 export const optionsDescription: INodeProperties = {
@@ -2158,5 +2189,87 @@ export const globalChoiceOperationFields: INodeProperties[] = [
 		required: true,
 		description: 'New display label for the option',
 		placeholder: 'e.g. Dark Red',
+	},
+];
+
+export const relationshipOperationFields: INodeProperties[] = [
+	{
+		displayName: 'Primary Table Name or ID',
+		name: 'primaryTable',
+		type: 'options',
+		typeOptions: {
+			loadOptionsMethod: 'getTables',
+		},
+		displayOptions: {
+			show: {
+				resource: ['relationship'],
+				operation: ['associate', 'disassociate'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'The primary table (source record). Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+	},
+	{
+		displayName: 'Primary Record ID',
+		name: 'primaryRecordId',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['relationship'],
+				operation: ['associate', 'disassociate'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'The GUID of the primary record',
+		placeholder: 'e.g. 00000000-0000-0000-0000-000000000000',
+	},
+	{
+		displayName: 'Relationship Name',
+		name: 'relationshipName',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['relationship'],
+				operation: ['associate', 'disassociate'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'The schema name of the many-to-many relationship (e.g., contact_account_customers)',
+		placeholder: 'e.g. contact_account_customers',
+	},
+	{
+		displayName: 'Related Table Name or ID',
+		name: 'relatedTable',
+		type: 'options',
+		typeOptions: {
+			loadOptionsMethod: 'getTables',
+		},
+		displayOptions: {
+			show: {
+				resource: ['relationship'],
+				operation: ['associate', 'disassociate'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'The related table (target record). Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+	},
+	{
+		displayName: 'Related Record ID',
+		name: 'relatedRecordId',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['relationship'],
+				operation: ['associate', 'disassociate'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'The GUID of the related record to associate/disassociate',
+		placeholder: 'e.g. 00000000-0000-0000-0000-000000000000',
 	},
 ];
