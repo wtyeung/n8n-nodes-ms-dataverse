@@ -2054,7 +2054,7 @@ export const webResourceOperationFields: INodeProperties[] = [
 export const globalChoiceOperationFields: INodeProperties[] = [
 	// Get Global Choice
 	{
-		displayName: 'Choice Name',
+		displayName: 'Choice Name or ID',
 		name: 'choiceName',
 		type: 'options',
 		typeOptions: {
@@ -2222,7 +2222,7 @@ export const globalChoiceOperationFields: INodeProperties[] = [
 
 export const relationshipOperationFields: INodeProperties[] = [
 	{
-		displayName: 'Relationship Name',
+		displayName: 'Relationship Name or ID',
 		name: 'relationshipName',
 		type: 'options',
 		typeOptions: {
@@ -2236,7 +2236,7 @@ export const relationshipOperationFields: INodeProperties[] = [
 		},
 		default: '',
 		required: true,
-		description: 'The many-to-many relationship. Choose from the list, or specify a name using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+		description: 'The many-to-many relationship. Choose from the list, or specify a name using an <a href="https://docs.n8n.io/code/expressions/">expression</a>. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 		placeholder: 'e.g. contact_account_customers',
 	},
 	{
