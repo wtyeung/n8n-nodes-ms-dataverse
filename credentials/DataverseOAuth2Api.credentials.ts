@@ -18,6 +18,12 @@ export class DataverseOAuth2Api implements ICredentialType {
 
 	properties: INodeProperties[] = [
 		{
+			displayName: 'Scope',
+			name: 'scope',
+			type: 'hidden',
+			default: '=offline_access {{$self.environmentUrl}}/.default',
+		},
+		{
 			displayName: 'Environment URL',
 			name: 'environmentUrl',
 			type: 'string',
@@ -25,14 +31,6 @@ export class DataverseOAuth2Api implements ICredentialType {
 			placeholder: 'https://org.crm.dynamics.com',
 			description: 'The URL of your Dataverse environment (e.g., https://yourorg.crm.dynamics.com)',
 			required: true,
-			noDataExpression: true,
-		},
-		{
-			displayName: 'Scope',
-			name: 'scope',
-			type: 'hidden',
-			default: '={{$self["environmentUrl"]}}/.default offline_access',
-			noDataExpression: true,
 		},
 	];
 
