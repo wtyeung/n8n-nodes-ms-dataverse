@@ -28,6 +28,12 @@ export class DataverseOAuth2Api implements ICredentialType {
 			noDataExpression: true,
 		},
 		{
+			displayName: 'Scope',
+			name: 'scope',
+			type: 'hidden',
+			default: '={{$self.environmentUrl}}/.default offline_access',
+		},
+		{
 			displayName: 'Grant Type',
 			name: 'grantType',
 			type: 'hidden',
@@ -51,17 +57,10 @@ export class DataverseOAuth2Api implements ICredentialType {
 			noDataExpression: true,
 		},
 		{
-			displayName: 'Scope',
-			name: 'scope',
-			type: 'hidden',
-			default: '={{$self["environmentUrl"]}}/.default offline_access',
-			noDataExpression: true,
-		},
-		{
 			displayName: 'Auth URI Query Parameters',
 			name: 'authQueryParameters',
 			type: 'hidden',
-			default: 'response_mode=query',
+			default: 'response_mode=form_post',
 			noDataExpression: true,
 		},
 		{
