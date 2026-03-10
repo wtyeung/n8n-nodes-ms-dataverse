@@ -57,13 +57,6 @@ export class DataverseOAuth2Api implements ICredentialType {
 			noDataExpression: true,
 		},
 		{
-			displayName: 'Auth URI Query Parameters',
-			name: 'authQueryParameters',
-			type: 'hidden',
-			default: 'response_mode=form_post',
-			noDataExpression: true,
-		},
-		{
 			displayName: 'Authentication',
 			name: 'authentication',
 			type: 'hidden',
