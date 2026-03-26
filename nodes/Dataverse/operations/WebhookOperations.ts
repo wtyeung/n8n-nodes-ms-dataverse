@@ -13,7 +13,7 @@ async function getSdkMessageFilterId(
 	const qs: IDataObject = {
 		$filter: `primaryobjecttypecode eq '${table}'`,
 		$select: 'sdkmessagefilterid,primaryobjecttypecode',
-		$expand: 'sdkmessageid($select=name,sdkmessageid)',
+		$expand: 'sdkmessageid($select=name;sdkmessageid)',
 	};
 
 	const response = (await dataverseApiRequest.call(
