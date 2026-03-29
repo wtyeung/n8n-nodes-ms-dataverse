@@ -52,7 +52,7 @@ async function getSdkMessageFilterId(
 		$filter: `primaryobjecttypecode eq '${logicalName}'`,
 	};
 
-	this.logger.info(`[Dataverse] getSdkMessageFilterId REQUEST url=${requestOptions.url} table=${table} logicalName=${logicalName} filter=${(requestOptions.qs as IDataObject)?.$filter}`);
+	this.logger.debug(`[Dataverse] getSdkMessageFilterId REQUEST url=${requestOptions.url} table=${table} logicalName=${logicalName} filter=${(requestOptions.qs as IDataObject)?.$filter}`);
 
 	let response: { value: Array<{ sdkmessagefilterid: string; sdkmessageid: { sdkmessageid: string; name: string } }> };
 	try {
@@ -61,9 +61,9 @@ async function getSdkMessageFilterId(
 			'dataverseOAuth2Api',
 			requestOptions,
 		)) as typeof response;
-		this.logger.info(`[Dataverse] getSdkMessageFilterId RESPONSE count=${response.value?.length ?? 0} operations=[${response.value?.map((f) => f.sdkmessageid?.name).join(', ')}]`);
+		this.logger.debug(`[Dataverse] getSdkMessageFilterId RESPONSE count=${response.value?.length ?? 0} operations=[${response.value?.map((f) => f.sdkmessageid?.name).join(', ')}]`);
 	} catch (err) {
-		this.logger.info(`[Dataverse] getSdkMessageFilterId ERROR message=${(err as Error).message}`);
+		this.logger.debug(`[Dataverse] getSdkMessageFilterId ERROR message=${(err as Error).message}`);
 		throw err;
 	}
 
@@ -76,7 +76,7 @@ async function getSdkMessageFilterId(
 		throw new Error(`No SDK message filter found for table: ${table} and operation: ${operation}`);
 	}
 
-	this.logger.info(`[Dataverse] SDK message filter found table=${table} operation=${operation} sdkmessagefilterid=${match.sdkmessagefilterid} sdkmessageid=${match.sdkmessageid.sdkmessageid}`);
+	this.logger.debug(`[Dataverse] SDK message filter found table=${table} operation=${operation} sdkmessagefilterid=${match.sdkmessagefilterid} sdkmessageid=${match.sdkmessageid.sdkmessageid}`);
 
 	return {
 		sdkmessagefilterid: match.sdkmessagefilterid,
@@ -174,12 +174,12 @@ export async function registerWebhookStep(
 	const credentials = await this.getCredentials('dataverseOAuth2Api');
 	const environmentUrl = (credentials.environmentUrl as string).replace(/\/$/, '');
 
-	this.logger.info(`[Dataverse] registerWebhookStep: looking up SDK message filter table=${table} operation=${operation} serviceEndpointId=${serviceEndpointId}`);
+	this.logger.debug(`[Dataverse] registerWebhookStep: looking up SDK message filter table=${table} operation=${operation} serviceEndpointId=${serviceEndpointId}`);
 
 	// Get SDK Message Filter ID using $expand to retrieve sdkmessageid GUID
 	const { sdkmessagefilterid, sdkmessageid } = await getSdkMessageFilterId.call(this, environmentUrl, table, operation);
 
-	this.logger.info(`[Dataverse] registerWebhookStep: filter resolved sdkmessagefilterid=${sdkmessagefilterid} sdkmessageid=${sdkmessageid}`);
+	this.logger.debug(`[Dataverse] registerWebhookStep: filter resolved sdkmessagefilterid=${sdkmessagefilterid} sdkmessageid=${sdkmessageid}`);
 
 	// Create SDK Message Processing Step
 	const stepBody: IDataObject = {
@@ -223,7 +223,7 @@ export async function registerWebhookStep(
 	const stepEntityIdHeader = stepHeaders['odata-entityid'] || stepHeaders['OData-EntityId'] || '';
 	const stepId = stepEntityIdHeader.match(/\(([a-f0-9-]{36})\)/i)?.[1] || '';
 
-	this.logger.info(`[Dataverse] registerWebhookStep: step created sdkmessageprocessingstepid=${stepId} serviceendpointid=${serviceEndpointId} sdkmessagefilterid=${sdkmessagefilterid} sdkmessageid=${sdkmessageid} table=${table} operation=${operation}`);
+	this.logger.debug(`[Dataverse] registerWebhookStep: step created sdkmessageprocessingstepid=${stepId} serviceendpointid=${serviceEndpointId} sdkmessagefilterid=${sdkmessagefilterid} sdkmessageid=${sdkmessageid} table=${table} operation=${operation}`);
 
 	return {
 		json: {
