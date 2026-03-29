@@ -128,16 +128,15 @@ export async function registerEndpoint(
 		returnFullResponse: true,
 	};
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const response = (await this.helpers.httpRequestWithAuthentication.call(
 		this,
 		'dataverseOAuth2Api',
 		requestOptions,
-	)) as any;
+	)) as { headers: Record<string, string>; body: IDataObject; statusCode: number };
 
 	// Extract serviceendpointid from OData-EntityId response header
 	// e.g. https://org.crm.dynamics.com/api/data/v9.2/serviceendpoints(xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
-	const responseHeaders = response.headers as Record<string, string>;
+	const responseHeaders = response.headers;
 	const entityIdHeader = responseHeaders['odata-entityid'] || responseHeaders['OData-EntityId'] || '';
 	const serviceEndpointId = entityIdHeader.match(/\(([a-f0-9-]{36})\)/i)?.[1] || '';
 
@@ -211,15 +210,14 @@ export async function registerWebhookStep(
 		returnFullResponse: true,
 	};
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const stepResponse = (await this.helpers.httpRequestWithAuthentication.call(
 		this,
 		'dataverseOAuth2Api',
 		stepRequestOptions,
-	)) as any;
+	)) as { headers: Record<string, string>; body: IDataObject; statusCode: number };
 
 	// Extract step ID from OData-EntityId response header
-	const stepHeaders = stepResponse.headers as Record<string, string>;
+	const stepHeaders = stepResponse.headers;
 	const stepEntityIdHeader = stepHeaders['odata-entityid'] || stepHeaders['OData-EntityId'] || '';
 	const stepId = stepEntityIdHeader.match(/\(([a-f0-9-]{36})\)/i)?.[1] || '';
 
