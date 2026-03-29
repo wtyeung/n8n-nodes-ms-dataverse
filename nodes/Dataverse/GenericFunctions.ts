@@ -77,6 +77,8 @@ export async function dataverseApiRequest(
 		headers: {
 			Accept: 'application/json',
 			'Content-Type': 'application/json',
+			'OData-MaxVersion': '4.0',
+			'OData-Version': '4.0',
 		},
 		qs,
 		body,
@@ -157,6 +159,88 @@ export async function dataverseApiRequest(
 		fullErrorMessage += `\nURL: ${options.url}`;
 		
 		throw new NodeOperationError(this.getNode(), fullErrorMessage);
+	}
+}
+
+/**
+ * Make an authenticated API request to Dataverse, returning full response including headers
+ * Used for POST operations where the entity ID is in the odata-entityid response header
+ */
+export async function dataverseApiRequestFull(
+	this: IExecuteFunctions,
+	method: IHttpRequestMethods,
+	endpoint: string,
+	body?: IDataObject,
+	itemIndex?: number,
+): Promise<{ body: IDataObject; headers: Record<string, string> }> {
+	let useCustomAuth = false;
+	let accessTokenOverride = '';
+	let customEnvironmentUrl = '';
+	let environmentUrl = '';
+
+	const paramIndex = itemIndex !== undefined ? itemIndex : 0;
+
+	try {
+		const opts = this.getNodeParameter('options', paramIndex, {}) as IDataObject;
+		useCustomAuth = opts.useCustomAuth as boolean || false;
+		accessTokenOverride = opts.accessToken as string || '';
+		customEnvironmentUrl = opts.customEnvironmentUrl as string || '';
+	} catch {
+		// ignore
+	}
+
+	if (useCustomAuth) {
+		environmentUrl = customEnvironmentUrl;
+	} else {
+		try {
+			const credentials = await this.getCredentials('dataverseOAuth2Api');
+			environmentUrl = credentials.environmentUrl as string;
+		} catch {
+			throw new NodeOperationError(this.getNode(), 'OAuth2 credentials are required.');
+		}
+	}
+
+	const cleanEnvironmentUrl = environmentUrl.replace(/\/$/, '');
+
+	const options: IHttpRequestOptions = {
+		method,
+		url: `${cleanEnvironmentUrl}/api/data/v9.2${endpoint}`,
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json',
+			'OData-MaxVersion': '4.0',
+			'OData-Version': '4.0',
+		},
+		body,
+		json: true,
+		returnFullResponse: true,
+	};
+
+	if (accessTokenOverride) {
+		options.headers!.Authorization = `Bearer ${accessTokenOverride}`;
+	}
+
+	try {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		let response: any;
+		if (useCustomAuth && accessTokenOverride) {
+			response = await this.helpers.httpRequest(options);
+		} else {
+			response = await this.helpers.httpRequestWithAuthentication.call(
+				this,
+				'dataverseOAuth2Api',
+				options,
+			);
+		}
+		return { body: response.body as IDataObject, headers: response.headers as Record<string, string> };
+	} catch (error) {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const errorObj = error as any;
+		let errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		if (errorObj?.cause?.response?.body?.error?.message) {
+			errorMessage = errorObj.cause.response.body.error.message;
+		}
+		throw new NodeOperationError(this.getNode(), `Dataverse API request failed: ${errorMessage}\nURL: ${options.url}`);
 	}
 }
 

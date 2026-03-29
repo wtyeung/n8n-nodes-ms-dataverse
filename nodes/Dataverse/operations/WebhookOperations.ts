@@ -1,4 +1,4 @@
-import type { IExecuteFunctions, IDataObject, INodeExecutionData } from 'n8n-workflow';
+import type { IExecuteFunctions, IDataObject, INodeExecutionData, IHttpRequestOptions } from 'n8n-workflow';
 import { dataverseApiRequest } from '../GenericFunctions';
 
 /**
@@ -6,37 +6,77 @@ import { dataverseApiRequest } from '../GenericFunctions';
  */
 async function getSdkMessageFilterId(
 	this: IExecuteFunctions,
+	environmentUrl: string,
 	table: string,
 	operation: string,
-	itemIndex: number,
 ): Promise<{ sdkmessagefilterid: string; sdkmessageid: string }> {
-	const qs: IDataObject = {
-		$filter: `primaryobjecttypecode eq '${table}'`,
-		$select: 'sdkmessagefilterid,primaryobjecttypecode',
-		$expand: 'sdkmessageid($select=name)',
+	const requestOptions: IHttpRequestOptions = {
+		method: 'GET',
+		url: `${environmentUrl}/api/data/v9.2/sdkmessagefilters`,
+		headers: {
+			'Content-Type': 'application/json',
+			'OData-MaxVersion': '4.0',
+			'OData-Version': '4.0',
+		},
+		qs: {
+			$filter: `primaryobjecttypecode eq '${table}'`,
+			$select: 'sdkmessagefilterid,primaryobjecttypecode',
+			$expand: 'sdkmessageid($select=name,sdkmessageid)',
+		},
+		json: true,
 	};
 
-	const response = (await dataverseApiRequest.call(
-		this,
-		'GET',
-		'/sdkmessagefilters',
-		undefined,
-		qs,
-		itemIndex,
-	)) as { value: Array<{ sdkmessagefilterid: string; sdkmessageid: { name: string; sdkmessageid: string } }> };
+	// Resolve EntitySetName (plural) → LogicalName (singular) required by primaryobjecttypecode
+	let logicalName = table;
+	try {
+		const entityMeta = (await this.helpers.httpRequestWithAuthentication.call(
+			this,
+			'dataverseOAuth2Api',
+			{
+				method: 'GET',
+				url: `${environmentUrl}/api/data/v9.2/EntityDefinitions`,
+				headers: { 'OData-MaxVersion': '4.0', 'OData-Version': '4.0' },
+				qs: { $select: 'LogicalName,EntitySetName', $filter: `EntitySetName eq '${table}'` },
+				json: true,
+			} as IHttpRequestOptions,
+		)) as { value: Array<{ LogicalName: string }> };
+		if (entityMeta.value?.length) {
+			logicalName = entityMeta.value[0].LogicalName;
+		}
+	} catch {
+		// fall back to raw table value
+	}
+
+	requestOptions.qs = {
+		...requestOptions.qs as IDataObject,
+		$filter: `primaryobjecttypecode eq '${logicalName}'`,
+	};
+
+	this.logger.info(`[Dataverse] getSdkMessageFilterId REQUEST url=${requestOptions.url} table=${table} logicalName=${logicalName} filter=${(requestOptions.qs as IDataObject)?.$filter}`);
+
+	let response: { value: Array<{ sdkmessagefilterid: string; sdkmessageid: { sdkmessageid: string; name: string } }> };
+	try {
+		response = (await this.helpers.httpRequestWithAuthentication.call(
+			this,
+			'dataverseOAuth2Api',
+			requestOptions,
+		)) as typeof response;
+		this.logger.info(`[Dataverse] getSdkMessageFilterId RESPONSE count=${response.value?.length ?? 0} operations=[${response.value?.map((f) => f.sdkmessageid?.name).join(', ')}]`);
+	} catch (err) {
+		this.logger.info(`[Dataverse] getSdkMessageFilterId ERROR message=${(err as Error).message}`);
+		throw err;
+	}
 
 	if (!response.value || response.value.length === 0) {
 		throw new Error(`No SDK message filter found for table: ${table}`);
 	}
 
-	// Find the matching operation
-	const match = response.value.find(
-		(item) => item.sdkmessageid.name === operation,
-	);
-
+	const match = response.value.find((f) => f.sdkmessageid?.name === operation);
 	if (!match) {
 		throw new Error(`No SDK message filter found for table: ${table} and operation: ${operation}`);
 	}
+
+	this.logger.info(`[Dataverse] SDK message filter found table=${table} operation=${operation} sdkmessagefilterid=${match.sdkmessagefilterid} sdkmessageid=${match.sdkmessageid.sdkmessageid}`);
 
 	return {
 		sdkmessagefilterid: match.sdkmessagefilterid,
@@ -71,20 +111,38 @@ export async function registerEndpoint(
 		serviceEndpointBody.authvalue = authHeader;
 	}
 
-	const serviceEndpointResponse = await dataverseApiRequest.call(
-		this,
-		'POST',
-		'/serviceendpoints',
-		serviceEndpointBody,
-		undefined,
-		itemIndex,
-	);
+	// Get environment URL from credentials
+	const credentials = await this.getCredentials('dataverseOAuth2Api');
+	const environmentUrl = (credentials.environmentUrl as string).replace(/\/$/, '');
 
-	// Extract serviceendpointid from the response
-	const serviceEndpointId = (serviceEndpointResponse as unknown as { serviceendpointid: string }).serviceendpointid;
+	const requestOptions: IHttpRequestOptions = {
+		method: 'POST',
+		url: `${environmentUrl}/api/data/v9.2/serviceendpoints`,
+		headers: {
+			'Content-Type': 'application/json',
+			'OData-MaxVersion': '4.0',
+			'OData-Version': '4.0',
+		},
+		body: serviceEndpointBody,
+		json: true,
+		returnFullResponse: true,
+	};
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const response = (await this.helpers.httpRequestWithAuthentication.call(
+		this,
+		'dataverseOAuth2Api',
+		requestOptions,
+	)) as any;
+
+	// Extract serviceendpointid from OData-EntityId response header
+	// e.g. https://org.crm.dynamics.com/api/data/v9.2/serviceendpoints(xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+	const responseHeaders = response.headers as Record<string, string>;
+	const entityIdHeader = responseHeaders['odata-entityid'] || responseHeaders['OData-EntityId'] || '';
+	const serviceEndpointId = entityIdHeader.match(/\(([a-f0-9-]{36})\)/i)?.[1] || '';
 
 	if (!serviceEndpointId) {
-		throw new Error('Failed to create service endpoint - no ID returned');
+		throw new Error('Failed to create service endpoint - no ID returned in odata-entityid header');
 	}
 
 	return {
@@ -112,8 +170,16 @@ export async function registerWebhookStep(
 	const stepName = this.getNodeParameter('stepName', itemIndex, '') as string;
 	const filteringAttributes = this.getNodeParameter('filteringAttributes', itemIndex, '') as string;
 
-	// Get SDK Message Filter ID
-	const { sdkmessagefilterid, sdkmessageid } = await getSdkMessageFilterId.call(this, table, operation, itemIndex);
+	// Get environment URL from credentials
+	const credentials = await this.getCredentials('dataverseOAuth2Api');
+	const environmentUrl = (credentials.environmentUrl as string).replace(/\/$/, '');
+
+	this.logger.info(`[Dataverse] registerWebhookStep: looking up SDK message filter table=${table} operation=${operation} serviceEndpointId=${serviceEndpointId}`);
+
+	// Get SDK Message Filter ID using $expand to retrieve sdkmessageid GUID
+	const { sdkmessagefilterid, sdkmessageid } = await getSdkMessageFilterId.call(this, environmentUrl, table, operation);
+
+	this.logger.info(`[Dataverse] registerWebhookStep: filter resolved sdkmessagefilterid=${sdkmessagefilterid} sdkmessageid=${sdkmessageid}`);
 
 	// Create SDK Message Processing Step
 	const stepBody: IDataObject = {
@@ -128,28 +194,45 @@ export async function registerWebhookStep(
 		'sdkmessagefilterid@odata.bind': `/sdkmessagefilters(${sdkmessagefilterid})`,
 	};
 
-	// Add filtering attributes if specified (for Update operations)
 	if (filteringAttributes) {
 		stepBody.filteringattributes = filteringAttributes;
 	}
 
-	const stepResponse = await dataverseApiRequest.call(
+	const stepRequestOptions: IHttpRequestOptions = {
+		method: 'POST',
+		url: `${environmentUrl}/api/data/v9.2/sdkmessageprocessingsteps`,
+		headers: {
+			'Content-Type': 'application/json',
+			'OData-MaxVersion': '4.0',
+			'OData-Version': '4.0',
+		},
+		body: stepBody,
+		json: true,
+		returnFullResponse: true,
+	};
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const stepResponse = (await this.helpers.httpRequestWithAuthentication.call(
 		this,
-		'POST',
-		'/sdkmessageprocessingsteps',
-		stepBody,
-		undefined,
-		itemIndex,
-	);
+		'dataverseOAuth2Api',
+		stepRequestOptions,
+	)) as any;
+
+	// Extract step ID from OData-EntityId response header
+	const stepHeaders = stepResponse.headers as Record<string, string>;
+	const stepEntityIdHeader = stepHeaders['odata-entityid'] || stepHeaders['OData-EntityId'] || '';
+	const stepId = stepEntityIdHeader.match(/\(([a-f0-9-]{36})\)/i)?.[1] || '';
+
+	this.logger.info(`[Dataverse] registerWebhookStep: step created sdkmessageprocessingstepid=${stepId} serviceendpointid=${serviceEndpointId} sdkmessagefilterid=${sdkmessagefilterid} sdkmessageid=${sdkmessageid} table=${table} operation=${operation}`);
 
 	return {
 		json: {
+			sdkmessageprocessingstepid: stepId,
 			serviceendpointid: serviceEndpointId,
 			sdkmessagefilterid,
 			sdkmessageid,
 			table,
 			operation,
-			step: stepResponse,
 			success: true,
 		},
 		pairedItem: { item: itemIndex },

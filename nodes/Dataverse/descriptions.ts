@@ -347,7 +347,7 @@ export const tableDescription: INodeProperties = {
 	description: 'Select a table for the operation',
 	displayOptions: {
 		show: {
-			resource: ['record', 'sql', 'webhook', 'plugin'],
+			resource: ['record', 'sql', 'plugin'],
 		},
 	},
 	modes: [
@@ -1481,6 +1481,37 @@ export const webhookOperationFields: INodeProperties[] = [
 		default: '',
 		description: 'Comma-separated list of field names that trigger this step. Leave empty to monitor all fields.',
 		placeholder: 'e.g. name,emailaddress1,statuscode',
+	},
+	// Table selector for webhook operations that need a table
+	{
+		displayName: 'Table',
+		name: 'table',
+		type: 'resourceLocator',
+		default: { mode: 'list', value: '' },
+		description: 'Select a table for the operation',
+		displayOptions: {
+			show: {
+				resource: ['webhook'],
+				operation: ['registerWebhookStep', 'listSdkMessageFilters'],
+			},
+		},
+		modes: [
+			{
+				displayName: 'From List',
+				name: 'list',
+				type: 'list',
+				typeOptions: {
+					searchListMethod: 'searchTables',
+					searchable: true,
+				},
+			},
+			{
+				displayName: 'By Name',
+				name: 'name',
+				type: 'string',
+				placeholder: 'e.g. accounts',
+			},
+		],
 	},
 	// List Endpoints fields
 	{
