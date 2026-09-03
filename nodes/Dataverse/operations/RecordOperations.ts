@@ -4,7 +4,7 @@ import {
 	dataverseApiBinaryRequest,
 	getImageAndFileFields,
 	buildRecordIdentifier,
-	fieldsToObject,
+	fieldsToRequestBody,
 	buildODataQuery,
 } from '../GenericFunctions';
 import type { FieldValue, AlternateKey, DataverseApiResponse } from '../types';
@@ -25,7 +25,7 @@ export async function createRecord(
 		body = typeof fieldsJson === 'string' ? JSON.parse(fieldsJson) : fieldsJson;
 	} else {
 		const fields = this.getNodeParameter('fields.field', itemIndex, []) as FieldValue[];
-		body = fieldsToObject(fields);
+		body = await fieldsToRequestBody.call(this, table, fields, itemIndex);
 	}
 
 	return await dataverseApiRequest.call(this, 'POST', `/${table}`, body, undefined, itemIndex);
@@ -348,7 +348,7 @@ export async function updateRecord(
 		body = typeof updateFieldsJson === 'string' ? JSON.parse(updateFieldsJson) : updateFieldsJson;
 	} else {
 		const updateFields = this.getNodeParameter('updateFields.field', itemIndex, []) as FieldValue[];
-		body = fieldsToObject(updateFields);
+		body = await fieldsToRequestBody.call(this, table, updateFields, itemIndex);
 	}
 
 	let recordIdentifier = '';
@@ -417,7 +417,7 @@ export async function upsertRecord(
 		body = typeof upsertFieldsJson === 'string' ? JSON.parse(upsertFieldsJson) : upsertFieldsJson;
 	} else {
 		const upsertFields = this.getNodeParameter('upsertFields.field', itemIndex, []) as FieldValue[];
-		body = fieldsToObject(upsertFields);
+		body = await fieldsToRequestBody.call(this, table, upsertFields, itemIndex);
 	}
 
 	const alternateKeys = this.getNodeParameter('alternateKeys.key', itemIndex, []) as AlternateKey[];

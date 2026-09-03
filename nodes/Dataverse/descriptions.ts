@@ -412,6 +412,20 @@ export const fieldSchemaSelector: INodeProperties = {
 	placeholder: 'Select a table first...',
 };
 
+export const showChoiceOptionsViewerDescription: INodeProperties = {
+	displayName: 'Show Choice Options Viewer',
+	name: 'showChoiceOptionsViewer',
+	type: 'boolean',
+	default: false,
+	displayOptions: {
+		show: {
+			resource: ['record'],
+			operation: ['create', 'update', 'upsert'],
+		},
+	},
+	description: 'Whether to show reference-only helper fields for looking up a choice field\'s available options and their integer values',
+};
+
 export const choiceFieldSelector: INodeProperties = {
 	displayName: 'View Choice Field Name or ID',
 	name: 'viewChoiceField',
@@ -423,6 +437,7 @@ export const choiceFieldSelector: INodeProperties = {
 		show: {
 			resource: ['record'],
 			operation: ['create', 'update', 'upsert'],
+			showChoiceOptionsViewer: [true],
 		},
 	},
 	default: '',
@@ -441,6 +456,7 @@ export const choiceOptionsViewer: INodeProperties = {
 		show: {
 			resource: ['record'],
 			operation: ['create', 'update', 'upsert'],
+			showChoiceOptionsViewer: [true],
 		},
 	},
 	default: '',

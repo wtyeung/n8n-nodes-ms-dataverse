@@ -7,12 +7,13 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import { searchTables, getTableFieldsForDisplay, getTableFieldNames, getAlternateKeyFields, getChoiceFieldOptions, getSolutions, getGlobalChoicesForDropdown, getRelationships } from './GenericFunctions';
+import { searchTables, getTableFieldsForDisplay, getTableFieldNames, getAlternateKeyFields, getChoiceFieldOptions, getSolutions, getGlobalChoicesForDropdown, getRelationships, resolveEntitySetName } from './GenericFunctions';
 import {
 	resourceDescription,
 	operationDescription,
 	tableDescription,
 	fieldSchemaSelector,
+	showChoiceOptionsViewerDescription,
 	choiceFieldSelector,
 	choiceOptionsViewer,
 	createOperationFields,
@@ -137,6 +138,7 @@ export class Dataverse implements INodeType {
 			...webhookOperationFields,
 			tableDescription,
 			fieldSchemaSelector,
+			showChoiceOptionsViewerDescription,
 			choiceFieldSelector,
 			choiceOptionsViewer,
 			...createOperationFields,
@@ -258,7 +260,15 @@ export class Dataverse implements INodeType {
 
 					returnData.push({ json: result, pairedItem: { item: i } });
 				} else if (resource === 'record') {
-					const table = this.getNodeParameter('table', i, '', { extractValue: true }) as string;
+					const tableParam = this.getNodeParameter('table', i) as { mode: string; value: string };
+					let table = this.getNodeParameter('table', i, '', { extractValue: true }) as string;
+					// "From List" mode already resolves to the EntitySetName (plural), but "By
+					// Name"/"By ID" modes let the user type either the LogicalName or the
+					// EntitySetName. Record endpoints require the EntitySetName, so resolve it
+					// here to avoid 404s when a LogicalName was entered.
+					if (tableParam?.mode !== 'list') {
+						table = await resolveEntitySetName.call(this, table, i);
+					}
 					let result: INodeExecutionData | INodeExecutionData[];
 
 					switch (operation) {

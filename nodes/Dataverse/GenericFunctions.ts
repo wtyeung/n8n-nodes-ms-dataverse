@@ -11,6 +11,71 @@ import { NodeOperationError } from 'n8n-workflow';
 import type { DataverseEntity, DataverseApiResponse } from './types';
 
 /**
+ * Extract the real Dataverse/OData error message, code, and HTTP status from a thrown error.
+ *
+ * n8n's `httpRequestWithAuthentication` wraps API errors in a `NodeApiError` whose top-level
+ * `message` is a generic, canned string based only on the HTTP status code (e.g. "Bad request -
+ * please check your parameters" for ANY 400 response). The actual error returned by the
+ * Dataverse Web API is preserved separately (typically on `.description`, `.context.data`, or
+ * nested inside `.cause`/`.response`), so we need to look there first to avoid surfacing a
+ * useless generic message to the user.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractDataverseErrorDetails(errorObj: any): {
+	errorMessage: string;
+	errorCode: string;
+	httpStatus: string;
+} {
+	let errorMessage = 'Unknown error';
+	let errorCode = '';
+	let httpStatus = '';
+
+	// Check for a Dataverse OData error object in the various places it can end up
+	let dataverseError = null;
+	if (errorObj?.cause?.response?.body?.error) {
+		dataverseError = errorObj.cause.response.body.error;
+	} else if (errorObj?.response?.data?.error) {
+		dataverseError = errorObj.response.data.error;
+	} else if (errorObj?.context?.data?.error) {
+		dataverseError = errorObj.context.data.error;
+	} else if (errorObj?.cause?.error) {
+		dataverseError = errorObj.cause.error;
+	} else if (errorObj?.error) {
+		dataverseError = errorObj.error;
+	}
+
+	if (dataverseError?.message) {
+		errorMessage = dataverseError.message;
+		if (dataverseError.code) {
+			errorCode = dataverseError.code;
+		}
+	} else if (errorObj?.description && typeof errorObj.description === 'string') {
+		// n8n's NodeApiError stores the real API error message here, while `.message` is
+		// replaced with a generic status-code message (e.g. "Bad request - please check your
+		// parameters"). Prefer this over the generic message.
+		errorMessage = errorObj.description;
+	} else if (Array.isArray(errorObj?.messages) && errorObj.messages.length > 0) {
+		// NodeApiError also preserves the original pre-generic-overwrite message(s) here.
+		errorMessage = errorObj.messages.join(' | ');
+	} else if (errorObj instanceof Error) {
+		errorMessage = errorObj.message;
+	}
+
+	// Get HTTP status code
+	if (errorObj?.httpCode) {
+		httpStatus = errorObj.httpCode;
+	} else if (errorObj?.cause?.response?.statusCode) {
+		httpStatus = errorObj.cause.response.statusCode;
+	} else if (errorObj?.response?.status) {
+		httpStatus = errorObj.response.status;
+	} else if (errorObj?.statusCode) {
+		httpStatus = errorObj.statusCode;
+	}
+
+	return { errorMessage, errorCode, httpStatus };
+}
+
+/**
  * Make an authenticated API request to Dataverse
  */
 export async function dataverseApiRequest(
@@ -106,48 +171,11 @@ export async function dataverseApiRequest(
 			);
 		}
 	} catch (error) {
-		// Extract detailed error information from Dataverse API response
-		let errorMessage = 'Unknown error';
-		let errorCode = '';
-		let httpStatus = '';
-		
-		// Try to extract error from various possible locations in the error object
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const errorObj = error as any;
-		
-		// Check for Dataverse error in response body
-		let dataverseError = null;
-		if (errorObj?.cause?.response?.body?.error) {
-			dataverseError = errorObj.cause.response.body.error;
-		} else if (errorObj?.response?.data?.error) {
-			dataverseError = errorObj.response.data.error;
-		} else if (errorObj?.cause?.error) {
-			dataverseError = errorObj.cause.error;
-		} else if (errorObj?.error) {
-			dataverseError = errorObj.error;
-		}
-		
-		// Extract error details from Dataverse error object
-		if (dataverseError) {
-			if (dataverseError.message) {
-				errorMessage = dataverseError.message;
-			}
-			if (dataverseError.code) {
-				errorCode = dataverseError.code;
-			}
-		} else if (error instanceof Error) {
-			errorMessage = error.message;
-		}
-		
-		// Get HTTP status code
-		if (errorObj?.cause?.response?.statusCode) {
-			httpStatus = errorObj.cause.response.statusCode;
-		} else if (errorObj?.response?.status) {
-			httpStatus = errorObj.response.status;
-		} else if (errorObj?.statusCode) {
-			httpStatus = errorObj.statusCode;
-		}
-		
+
+		const { errorMessage, errorCode, httpStatus } = extractDataverseErrorDetails(errorObj);
+
 		// Build comprehensive error message
 		let fullErrorMessage = `Dataverse API request failed: ${errorMessage}`;
 		if (httpStatus) {
@@ -157,7 +185,7 @@ export async function dataverseApiRequest(
 			fullErrorMessage += ` [Error Code: ${errorCode}]`;
 		}
 		fullErrorMessage += `\nURL: ${options.url}`;
-		
+
 		throw new NodeOperationError(this.getNode(), fullErrorMessage);
 	}
 }
@@ -236,11 +264,18 @@ export async function dataverseApiRequestFull(
 	} catch (error) {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const errorObj = error as any;
-		let errorMessage = error instanceof Error ? error.message : 'Unknown error';
-		if (errorObj?.cause?.response?.body?.error?.message) {
-			errorMessage = errorObj.cause.response.body.error.message;
+		const { errorMessage, errorCode, httpStatus } = extractDataverseErrorDetails(errorObj);
+
+		let fullErrorMessage = `Dataverse API request failed: ${errorMessage}`;
+		if (httpStatus) {
+			fullErrorMessage += ` (HTTP ${httpStatus})`;
 		}
-		throw new NodeOperationError(this.getNode(), `Dataverse API request failed: ${errorMessage}\nURL: ${options.url}`);
+		if (errorCode) {
+			fullErrorMessage += ` [Error Code: ${errorCode}]`;
+		}
+		fullErrorMessage += `\nURL: ${options.url}`;
+
+		throw new NodeOperationError(this.getNode(), fullErrorMessage);
 	}
 }
 
@@ -405,6 +440,46 @@ export async function searchTables(
 	} catch (error) {
 		throw new NodeOperationError(this.getNode(), `Failed to load tables: ${error.message}`);
 	}
+}
+
+/**
+ * Resolve a table value entered via the "By Name"/"By ID" resource locator modes to the
+ * EntitySetName (plural collection name) required by Dataverse Web API record endpoints.
+ *
+ * The "From List" mode already resolves to EntitySetName, but "By Name"/"By ID" let users type
+ * either the LogicalName (singular, e.g. "account") or the EntitySetName (plural, e.g.
+ * "accounts") directly. Record CRUD endpoints require the EntitySetName in the URL, so passing a
+ * LogicalName through unresolved results in a 404 "Resource not found for the segment" error.
+ */
+export async function resolveEntitySetName(
+	this: IExecuteFunctions | ILoadOptionsFunctions,
+	table: string,
+	itemIndex?: number,
+): Promise<string> {
+	try {
+		const entityResponse = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			'/EntityDefinitions',
+			undefined,
+			{
+				$select: 'LogicalName,EntitySetName',
+				$filter: `LogicalName eq '${table}' or EntitySetName eq '${table}'`,
+			},
+			itemIndex,
+		)) as DataverseApiResponse;
+
+		if (entityResponse.value && entityResponse.value.length > 0) {
+			const entitySetName = (entityResponse.value[0] as { EntitySetName: string }).EntitySetName;
+			if (entitySetName) {
+				return entitySetName;
+			}
+		}
+	} catch {
+		// If the lookup fails, fall back to using the value as-is
+	}
+
+	return table;
 }
 
 /**
@@ -894,6 +969,111 @@ export function fieldsToObject(fields: Array<{ name: string; value: string }>): 
 	for (const field of fields) {
 		body[field.name] = field.value;
 	}
+	return body;
+}
+
+/**
+ * Resolve a table value (LogicalName or EntitySetName) to its LogicalName, as required by the
+ * `EntityDefinitions(LogicalName='...')` metadata endpoints.
+ */
+async function resolveLogicalName(
+	this: IExecuteFunctions | ILoadOptionsFunctions,
+	table: string,
+	itemIndex?: number,
+): Promise<string> {
+	try {
+		const entityResponse = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			'/EntityDefinitions',
+			undefined,
+			{
+				$select: 'LogicalName,EntitySetName',
+				$filter: `LogicalName eq '${table}' or EntitySetName eq '${table}'`,
+			},
+			itemIndex,
+		)) as DataverseApiResponse;
+
+		if (entityResponse.value && entityResponse.value.length > 0) {
+			return (entityResponse.value[0] as { LogicalName: string }).LogicalName;
+		}
+	} catch {
+		// If the lookup fails, fall back to using the value as-is
+	}
+
+	return table;
+}
+
+/**
+ * Get a map of lookup field LogicalNames to their target entity LogicalName(s) for a table.
+ * Queries the metadata endpoint cast to `LookupAttributeMetadata`, which covers Lookup, Customer,
+ * and Owner attribute types and exposes the `Targets` the field can point to.
+ */
+async function getLookupFieldTargets(
+	this: IExecuteFunctions,
+	logicalName: string,
+	itemIndex?: number,
+): Promise<Map<string, string[]>> {
+	const lookupTargets = new Map<string, string[]>();
+
+	try {
+		const response = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			`/EntityDefinitions(LogicalName='${logicalName}')/Attributes/Microsoft.Dynamics.CRM.LookupAttributeMetadata`,
+			undefined,
+			{ $select: 'LogicalName,Targets' },
+			itemIndex,
+		)) as DataverseApiResponse;
+
+		for (const attr of (response.value || []) as Array<{ LogicalName: string; Targets?: string[] }>) {
+			if (attr.LogicalName && attr.Targets && attr.Targets.length > 0) {
+				lookupTargets.set(attr.LogicalName, attr.Targets);
+			}
+		}
+	} catch {
+		// If metadata lookup fails, fall back to treating all fields as non-lookup values
+	}
+
+	return lookupTargets;
+}
+
+/**
+ * Convert a field array into an API request body, resolving lookup fields to the `@odata.bind`
+ * navigation-property syntax Dataverse requires (e.g. `"field@odata.bind": "/accounts(guid)"`)
+ * instead of sending the raw GUID as a primitive value, which Dataverse rejects with an
+ * ODataException like "A 'PrimitiveValue' node with non-null value was found... however, a
+ * 'StartArray' node, a 'StartObject' node... was expected."
+ */
+export async function fieldsToRequestBody(
+	this: IExecuteFunctions,
+	table: string,
+	fields: Array<{ name: string; value: string }>,
+	itemIndex?: number,
+): Promise<IDataObject> {
+	const body: IDataObject = {};
+	if (fields.length === 0) {
+		return body;
+	}
+
+	const logicalName = await resolveLogicalName.call(this, table, itemIndex);
+	const lookupTargets = await getLookupFieldTargets.call(this, logicalName, itemIndex);
+
+	for (const field of fields) {
+		const targets = lookupTargets.get(field.name);
+		if (targets && targets.length > 0) {
+			if (!field.value) {
+				// Clear the lookup by binding it to null
+				body[`${field.name}@odata.bind`] = null;
+				continue;
+			}
+			const targetEntitySet = await resolveEntitySetName.call(this, targets[0], itemIndex);
+			body[`${field.name}@odata.bind`] = `/${targetEntitySet}(${field.value})`;
+		} else {
+			body[field.name] = field.value;
+		}
+	}
+
 	return body;
 }
 
