@@ -1,25 +1,5 @@
 import type { IExecuteFunctions, IDataObject } from 'n8n-workflow';
-import { dataverseApiRequest } from '../GenericFunctions';
-
-/**
- * Build record identifier from ID or alternate keys
- */
-function buildRecordIdentifier(
-	recordIdType: string,
-	recordId?: string,
-	alternateKeys?: Array<{ name: string; value: string }>,
-): string {
-	if (recordIdType === 'id' && recordId) {
-		return recordId;
-	}
-
-	if (recordIdType === 'alternateKey' && alternateKeys) {
-		const keyPairs = alternateKeys.map((key) => `${key.name}='${key.value}'`);
-		return keyPairs.join(',');
-	}
-
-	throw new Error('Invalid record identifier configuration');
-}
+import { dataverseApiRequest, buildRecordIdentifierAsync } from '../GenericFunctions';
 
 /**
  * Associate two records in a many-to-many relationship
@@ -41,7 +21,7 @@ export async function associateRecords(
 		primaryRecordIdentifier = primaryRecordId;
 	} else {
 		const primaryAlternateKeys = this.getNodeParameter('primaryAlternateKeys.key', itemIndex, []) as Array<{ name: string; value: string }>;
-		primaryRecordIdentifier = buildRecordIdentifier('alternateKey', undefined, primaryAlternateKeys);
+		primaryRecordIdentifier = await buildRecordIdentifierAsync.call(this, primaryTable, 'alternateKey', undefined, primaryAlternateKeys, itemIndex);
 	}
 
 	// Get related record identifier
@@ -51,7 +31,7 @@ export async function associateRecords(
 		relatedRecordIdentifier = relatedRecordId;
 	} else {
 		const relatedAlternateKeys = this.getNodeParameter('relatedAlternateKeys.key', itemIndex, []) as Array<{ name: string; value: string }>;
-		relatedRecordIdentifier = buildRecordIdentifier('alternateKey', undefined, relatedAlternateKeys);
+		relatedRecordIdentifier = await buildRecordIdentifierAsync.call(this, relatedTable, 'alternateKey', undefined, relatedAlternateKeys, itemIndex);
 	}
 
 	// Build the request body for Associate
@@ -101,7 +81,7 @@ export async function disassociateRecords(
 		primaryRecordIdentifier = primaryRecordId;
 	} else {
 		const primaryAlternateKeys = this.getNodeParameter('primaryAlternateKeys.key', itemIndex, []) as Array<{ name: string; value: string }>;
-		primaryRecordIdentifier = buildRecordIdentifier('alternateKey', undefined, primaryAlternateKeys);
+		primaryRecordIdentifier = await buildRecordIdentifierAsync.call(this, primaryTable, 'alternateKey', undefined, primaryAlternateKeys, itemIndex);
 	}
 
 	// Get related record identifier
@@ -111,7 +91,7 @@ export async function disassociateRecords(
 		relatedRecordIdentifier = relatedRecordId;
 	} else {
 		const relatedAlternateKeys = this.getNodeParameter('relatedAlternateKeys.key', itemIndex, []) as Array<{ name: string; value: string }>;
-		relatedRecordIdentifier = buildRecordIdentifier('alternateKey', undefined, relatedAlternateKeys);
+		relatedRecordIdentifier = await buildRecordIdentifierAsync.call(this, relatedTable, 'alternateKey', undefined, relatedAlternateKeys, itemIndex);
 	}
 
 	// Execute Disassociate request

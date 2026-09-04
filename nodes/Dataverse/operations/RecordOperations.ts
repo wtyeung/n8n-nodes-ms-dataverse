@@ -3,7 +3,7 @@ import {
 	dataverseApiRequest,
 	dataverseApiBinaryRequest,
 	getImageAndFileFields,
-	buildRecordIdentifier,
+	buildRecordIdentifierAsync,
 	fieldsToRequestBody,
 	buildODataQuery,
 } from '../GenericFunctions';
@@ -51,10 +51,10 @@ export async function getRecord(
 
 	if (recordIdType === 'id') {
 		const recordId = this.getNodeParameter('recordId', itemIndex) as string;
-		recordIdentifier = buildRecordIdentifier('id', recordId);
+		recordIdentifier = await buildRecordIdentifierAsync.call(this, table, 'id', recordId, undefined, itemIndex);
 	} else {
 		const alternateKeys = this.getNodeParameter('alternateKeys.key', itemIndex, []) as AlternateKey[];
-		recordIdentifier = buildRecordIdentifier('alternateKey', undefined, alternateKeys);
+		recordIdentifier = await buildRecordIdentifierAsync.call(this, table, 'alternateKey', undefined, alternateKeys, itemIndex);
 	}
 
 	const qs: IDataObject = {};
@@ -355,10 +355,10 @@ export async function updateRecord(
 
 	if (recordIdType === 'alternateKey') {
 		const alternateKeys = this.getNodeParameter('alternateKeys.key', itemIndex, []) as AlternateKey[];
-		recordIdentifier = buildRecordIdentifier('alternateKey', undefined, alternateKeys);
+		recordIdentifier = await buildRecordIdentifierAsync.call(this, table, 'alternateKey', undefined, alternateKeys, itemIndex);
 	} else {
 		const recordId = this.getNodeParameter('recordId', itemIndex) as string;
-		recordIdentifier = buildRecordIdentifier('id', recordId);
+		recordIdentifier = await buildRecordIdentifierAsync.call(this, table, 'id', recordId, undefined, itemIndex);
 	}
 
 	const response = await dataverseApiRequest.call(
@@ -387,10 +387,10 @@ export async function deleteRecord(
 
 	if (recordIdType === 'alternateKey') {
 		const alternateKeys = this.getNodeParameter('alternateKeys.key', itemIndex, []) as AlternateKey[];
-		recordIdentifier = buildRecordIdentifier('alternateKey', undefined, alternateKeys);
+		recordIdentifier = await buildRecordIdentifierAsync.call(this, table, 'alternateKey', undefined, alternateKeys, itemIndex);
 	} else {
 		const recordId = this.getNodeParameter('recordId', itemIndex) as string;
-		recordIdentifier = buildRecordIdentifier('id', recordId);
+		recordIdentifier = await buildRecordIdentifierAsync.call(this, table, 'id', recordId, undefined, itemIndex);
 	}
 
 	await dataverseApiRequest.call(this, 'DELETE', `/${table}(${recordIdentifier})`, undefined, undefined, itemIndex);
@@ -424,7 +424,7 @@ export async function upsertRecord(
 
 	// If alternate keys provided, use PATCH with keys in URL for true upsert
 	if (alternateKeys && alternateKeys.length > 0) {
-		const recordIdentifier = buildRecordIdentifier('alternateKey', undefined, alternateKeys);
+		const recordIdentifier = await buildRecordIdentifierAsync.call(this, table, 'alternateKey', undefined, alternateKeys, itemIndex);
 		const response = await dataverseApiRequest.call(
 			this,
 			'PATCH',
@@ -468,7 +468,7 @@ export async function shareRecord(
 	} else {
 		// Lookup record by alternate keys to get the GUID
 		const alternateKeys = this.getNodeParameter('alternateKeys.key', itemIndex, []) as AlternateKey[];
-		const recordIdentifier = buildRecordIdentifier('alternateKey', undefined, alternateKeys);
+		const recordIdentifier = await buildRecordIdentifierAsync.call(this, table, 'alternateKey', undefined, alternateKeys, itemIndex);
 		
 		// Fetch the record to get its GUID
 		const recordResponse = (await dataverseApiRequest.call(
@@ -612,7 +612,7 @@ export async function listSharedUsers(
 	} else {
 		// Lookup record by alternate keys to get the GUID
 		const alternateKeys = this.getNodeParameter('alternateKeys.key', itemIndex, []) as AlternateKey[];
-		const recordIdentifier = buildRecordIdentifier('alternateKey', undefined, alternateKeys);
+		const recordIdentifier = await buildRecordIdentifierAsync.call(this, table, 'alternateKey', undefined, alternateKeys, itemIndex);
 		
 		// Fetch the record to get its GUID
 		const recordResponse = (await dataverseApiRequest.call(
@@ -676,7 +676,7 @@ export async function revokeAccess(
 	} else {
 		// Lookup record by alternate keys to get the GUID
 		const alternateKeys = this.getNodeParameter('alternateKeys.key', itemIndex, []) as AlternateKey[];
-		const recordIdentifier = buildRecordIdentifier('alternateKey', undefined, alternateKeys);
+		const recordIdentifier = await buildRecordIdentifierAsync.call(this, table, 'alternateKey', undefined, alternateKeys, itemIndex);
 		
 		// Fetch the record to get its GUID
 		const recordResponse = (await dataverseApiRequest.call(
@@ -800,7 +800,7 @@ export async function assignRecord(
 			throw new Error('At least one alternate key must be provided');
 		}
 		// For Assign, we need the actual GUID, so we need to fetch it first
-		const recordIdentifier = buildRecordIdentifier('alternateKey', undefined, alternateKeys);
+		const recordIdentifier = await buildRecordIdentifierAsync.call(this, table, 'alternateKey', undefined, alternateKeys, itemIndex);
 		const recordResponse = (await dataverseApiRequest.call(
 			this,
 			'GET',

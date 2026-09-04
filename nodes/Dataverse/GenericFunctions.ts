@@ -456,30 +456,32 @@ export async function resolveEntitySetName(
 	table: string,
 	itemIndex?: number,
 ): Promise<string> {
-	try {
-		const entityResponse = (await dataverseApiRequest.call(
-			this,
-			'GET',
-			'/EntityDefinitions',
-			undefined,
-			{
-				$select: 'LogicalName,EntitySetName',
-				$filter: `LogicalName eq '${table}' or EntitySetName eq '${table}'`,
-			},
-			itemIndex,
-		)) as DataverseApiResponse;
+	return getCached(this, `entitySetName:${table}`, async () => {
+		try {
+			const entityResponse = (await dataverseApiRequest.call(
+				this,
+				'GET',
+				'/EntityDefinitions',
+				undefined,
+				{
+					$select: 'LogicalName,EntitySetName',
+					$filter: `LogicalName eq '${table}' or EntitySetName eq '${table}'`,
+				},
+				itemIndex,
+			)) as DataverseApiResponse;
 
-		if (entityResponse.value && entityResponse.value.length > 0) {
-			const entitySetName = (entityResponse.value[0] as { EntitySetName: string }).EntitySetName;
-			if (entitySetName) {
-				return entitySetName;
+			if (entityResponse.value && entityResponse.value.length > 0) {
+				const entitySetName = (entityResponse.value[0] as { EntitySetName: string }).EntitySetName;
+				if (entitySetName) {
+					return entitySetName;
+				}
 			}
+		} catch {
+			// If the lookup fails, fall back to using the value as-is
 		}
-	} catch {
-		// If the lookup fails, fall back to using the value as-is
-	}
 
-	return table;
+		return table;
+	});
 }
 
 /**
@@ -891,20 +893,29 @@ export async function getAlternateKeyFields(
 			];
 		}
 
-		// Collect all unique field names from all alternate keys
+		// Extract each key's own attribute set (a key can be a single field or a composite of
+		// several fields that must all be used together to identify a record) and collect the
+		// union of all field names for the metadata lookup below.
+		const keyFieldGroups: string[][] = [];
 		const fieldSet = new Set<string>();
 		for (const key of keys) {
 			// KeyAttributes can be an array of strings or objects with LogicalName property
 			const keyAttributes = key.KeyAttributes;
-			
+			const fieldNames: string[] = [];
+
 			if (Array.isArray(keyAttributes)) {
 				for (const attr of keyAttributes) {
 					// Handle both string and object formats
 					const fieldName = typeof attr === 'string' ? attr : (attr as IDataObject).LogicalName as string;
 					if (fieldName) {
+						fieldNames.push(fieldName);
 						fieldSet.add(fieldName);
 					}
 				}
+			}
+
+			if (fieldNames.length > 0) {
+				keyFieldGroups.push(fieldNames);
 			}
 		}
 
@@ -921,12 +932,61 @@ export async function getAlternateKeyFields(
 			];
 		}
 
-		// Convert to options array
-		for (const fieldName of Array.from(fieldSet).sort()) {
+		// Fetch display name and type for each key field, to show the same
+		// "Display Name (logicalName) - Type" format as the Field Name selector
+		const fieldNames = Array.from(fieldSet).sort();
+		let attributeDetails = new Map<string, { displayName?: string; type?: string }>();
+		try {
+			const filter = fieldNames.map((name) => `LogicalName eq '${name}'`).join(' or ');
+			const attributesResponse = (await dataverseApiRequest.call(
+				this,
+				'GET',
+				`/EntityDefinitions(LogicalName='${logicalName}')/Attributes`,
+				undefined,
+				{
+					$select: 'LogicalName,DisplayName,AttributeType',
+					$filter: filter,
+				},
+			)) as DataverseApiResponse;
+
+			attributeDetails = new Map(
+				((attributesResponse.value || []) as Array<{
+					LogicalName: string;
+					DisplayName?: { UserLocalizedLabel?: { Label?: string } };
+					AttributeType?: string;
+				}>).map((attr) => [
+					attr.LogicalName,
+					{ displayName: attr.DisplayName?.UserLocalizedLabel?.Label, type: attr.AttributeType },
+				]),
+			);
+		} catch {
+			// If metadata lookup fails, fall back to showing plain field names below
+		}
+
+		const formatFieldOption = (fieldName: string): string => {
+			const details = attributeDetails.get(fieldName);
+			return details
+				? `${details.displayName || fieldName} (${fieldName})${details.type ? ` - ${details.type}` : ''}`
+				: fieldName;
+		};
+
+		// Group options by which declared key each field belongs to, since fields from
+		// different keys can't be mixed together to identify a record - Dataverse requires the
+		// exact set of fields from a single declared key.
+		for (const group of keyFieldGroups) {
 			returnData.push({
-				name: fieldName,
-				value: fieldName,
+				name: group.length > 1
+					? `━━━ Composite Key: ${group.join(', ')} (use all ${group.length} together) ━━━`
+					: `━━━ Key: ${group[0]} ━━━`,
+				value: '',
 			});
+
+			for (const fieldName of group) {
+				returnData.push({
+					name: `  ${formatFieldOption(fieldName)}`,
+					value: fieldName,
+				});
+			}
 		}
 
 		return returnData;
@@ -941,21 +1001,114 @@ export async function getAlternateKeyFields(
 	}
 }
 
+const GUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
 /**
- * Build record identifier for API calls (ID or alternate keys)
+ * Format an alternate key's field name for use in an OData key predicate. Per Dataverse's Web
+ * API rules, a Lookup-backed alternate key attribute must be referenced by its "Lookup Property"
+ * name (`_<logicalname>_value`), not the plain attribute logical name - e.g.
+ * `_primarycontactid_value=<guid>` rather than `primarycontactid=<guid>`. Using the plain name
+ * causes Dataverse to reject the request with "The key in the request URI is not valid...".
  */
-export function buildRecordIdentifier(
+function formatAlternateKeyName(fieldName: string, isLookup: boolean): string {
+	return isLookup ? `_${fieldName}_value` : fieldName;
+}
+
+/**
+ * Format a single alternate key value as an OData literal, based on the target field's actual
+ * Dataverse attribute type. Numeric, boolean, and GUID-backed (Lookup/Uniqueidentifier) columns
+ * must be emitted unquoted per OData literal rules for their respective Edm types; text columns
+ * are quoted with embedded single quotes escaped (`'` -> `''`). When the attribute type can't be
+ * determined (e.g. metadata lookup failed), falls back to a GUID-shape heuristic.
+ */
+function formatAlternateKeyValue(value: unknown, attributeType?: string): string {
+	const stringValue = String(value).trim();
+
+	switch (attributeType) {
+		case 'Boolean':
+			return ['true', '1', 'yes'].includes(stringValue.toLowerCase()) ? 'true' : 'false';
+		case 'Integer':
+		case 'BigInt':
+		case 'Decimal':
+		case 'Double':
+		case 'Money': {
+			const numericValue = Number(stringValue);
+			return Number.isNaN(numericValue) ? `'${stringValue.replace(/'/g, "''")}'` : String(numericValue);
+		}
+		case 'Uniqueidentifier':
+		case 'Lookup':
+		case 'Customer':
+		case 'Owner':
+		case 'DateTime':
+			// GUIDs and ISO datetimes are unquoted OData literals; pass through as-is.
+			return stringValue;
+		case 'String':
+		case 'Memo':
+			return `'${stringValue.replace(/'/g, "''")}'`;
+		default:
+			return GUID_REGEX.test(stringValue) ? stringValue : `'${stringValue.replace(/'/g, "''")}'`;
+	}
+}
+
+/**
+ * Build record identifier for API calls (ID or alternate keys), formatting alternate key values
+ * according to the target table's actual field metadata (Boolean/numeric/GUID values are
+ * unquoted, text values are quoted) instead of guessing from the value's shape.
+ *
+ * If an alternate key field is itself a Lookup (e.g. a many-to-many junction table keyed by two
+ * Lookup columns), its value may be provided as either a raw GUID or a JSON object of alternate
+ * key field/value pairs on *that* lookup's target table (e.g. `{"emailaddress1": "a@b.com"}`) —
+ * mirroring the same convenience as Lookup Field Values in Create/Update/Upsert. The JSON is
+ * resolved to the target record's GUID via a lookup request before building the final URL.
+ */
+export async function buildRecordIdentifierAsync(
+	this: IExecuteFunctions,
+	table: string,
 	recordIdType: string,
 	recordId?: string,
 	alternateKeys?: Array<{ name: string; value: string }>,
-): string {
+	itemIndex?: number,
+): Promise<string> {
 	if (recordIdType === 'id' && recordId) {
 		return recordId;
 	}
 
-	if (recordIdType === 'alternateKey' && alternateKeys) {
-		// Escape single quotes per OData string literal rules (a literal `'` is represented as `''`)
-		const keyPairs = alternateKeys.map((key) => `${key.name}='${key.value.replace(/'/g, "''")}'`);
+	if (recordIdType === 'alternateKey' && alternateKeys && alternateKeys.length > 0) {
+		const logicalName = await resolveLogicalName.call(this, table, itemIndex);
+		const [attributeTypes, lookupTargets] = await Promise.all([
+			getFieldAttributeTypes.call(this, logicalName, itemIndex),
+			getLookupFieldTargets.call(this, logicalName, itemIndex),
+		]);
+
+		const keyPairs = await Promise.all(
+			alternateKeys.map(async (key) => {
+				const targets = lookupTargets.get(key.name);
+				const isLookup = !!(targets && targets.length > 0);
+				const urlKeyName = formatAlternateKeyName(key.name, isLookup);
+
+				if (isLookup) {
+					const trimmedValue = String(key.value).trim();
+					if (GUID_REGEX.test(trimmedValue)) {
+						return `${urlKeyName}=${trimmedValue}`;
+					}
+					const nestedAlternateKeys = parseAlternateKeyJson(trimmedValue);
+					if (nestedAlternateKeys && nestedAlternateKeys.length > 0) {
+						const targetLogicalName = targets![0];
+						const targetEntitySet = await resolveEntitySetName.call(this, targetLogicalName, itemIndex);
+						const guid = await resolveAlternateKeyToGuid.call(
+							this,
+							targetLogicalName,
+							targetEntitySet,
+							nestedAlternateKeys,
+							itemIndex,
+						);
+						return `${urlKeyName}=${guid}`;
+					}
+				}
+
+				return `${urlKeyName}=${formatAlternateKeyValue(key.value, attributeTypes.get(key.name))}`;
+			}),
+		);
 		return keyPairs.join(',');
 	}
 
@@ -974,6 +1127,29 @@ export function fieldsToObject(fields: Array<{ name: string; value: string }>): 
 }
 
 /**
+ * Per-execution metadata cache, keyed by the execution context (`this`) so repeated calls for
+ * the same table within a single node run (e.g. across many items in a loop) reuse already
+ * fetched metadata instead of re-querying Dataverse every time. Each workflow execution gets a
+ * fresh context object, so the cache naturally expires between runs without needing manual
+ * invalidation.
+ */
+const executionMetadataCache = new WeakMap<object, Map<string, unknown>>();
+
+async function getCached<T>(context: object, cacheKey: string, fetcher: () => Promise<T>): Promise<T> {
+	let cache = executionMetadataCache.get(context);
+	if (!cache) {
+		cache = new Map();
+		executionMetadataCache.set(context, cache);
+	}
+	if (cache.has(cacheKey)) {
+		return cache.get(cacheKey) as T;
+	}
+	const value = await fetcher();
+	cache.set(cacheKey, value);
+	return value;
+}
+
+/**
  * Resolve a table value (LogicalName or EntitySetName) to its LogicalName, as required by the
  * `EntityDefinitions(LogicalName='...')` metadata endpoints.
  */
@@ -982,27 +1158,29 @@ async function resolveLogicalName(
 	table: string,
 	itemIndex?: number,
 ): Promise<string> {
-	try {
-		const entityResponse = (await dataverseApiRequest.call(
-			this,
-			'GET',
-			'/EntityDefinitions',
-			undefined,
-			{
-				$select: 'LogicalName,EntitySetName',
-				$filter: `LogicalName eq '${table}' or EntitySetName eq '${table}'`,
-			},
-			itemIndex,
-		)) as DataverseApiResponse;
+	return getCached(this, `logicalName:${table}`, async () => {
+		try {
+			const entityResponse = (await dataverseApiRequest.call(
+				this,
+				'GET',
+				'/EntityDefinitions',
+				undefined,
+				{
+					$select: 'LogicalName,EntitySetName',
+					$filter: `LogicalName eq '${table}' or EntitySetName eq '${table}'`,
+				},
+				itemIndex,
+			)) as DataverseApiResponse;
 
-		if (entityResponse.value && entityResponse.value.length > 0) {
-			return (entityResponse.value[0] as { LogicalName: string }).LogicalName;
+			if (entityResponse.value && entityResponse.value.length > 0) {
+				return (entityResponse.value[0] as { LogicalName: string }).LogicalName;
+			}
+		} catch {
+			// If the lookup fails, fall back to using the value as-is
 		}
-	} catch {
-		// If the lookup fails, fall back to using the value as-is
-	}
 
-	return table;
+		return table;
+	});
 }
 
 /**
@@ -1015,28 +1193,30 @@ async function getLookupFieldTargets(
 	logicalName: string,
 	itemIndex?: number,
 ): Promise<Map<string, string[]>> {
-	const lookupTargets = new Map<string, string[]>();
+	return getCached(this, `lookupTargets:${logicalName}`, async () => {
+		const lookupTargets = new Map<string, string[]>();
 
-	try {
-		const response = (await dataverseApiRequest.call(
-			this,
-			'GET',
-			`/EntityDefinitions(LogicalName='${logicalName}')/Attributes/Microsoft.Dynamics.CRM.LookupAttributeMetadata`,
-			undefined,
-			{ $select: 'LogicalName,Targets' },
-			itemIndex,
-		)) as DataverseApiResponse;
+		try {
+			const response = (await dataverseApiRequest.call(
+				this,
+				'GET',
+				`/EntityDefinitions(LogicalName='${logicalName}')/Attributes/Microsoft.Dynamics.CRM.LookupAttributeMetadata`,
+				undefined,
+				{ $select: 'LogicalName,Targets' },
+				itemIndex,
+			)) as DataverseApiResponse;
 
-		for (const attr of (response.value || []) as Array<{ LogicalName: string; Targets?: string[] }>) {
-			if (attr.LogicalName && attr.Targets && attr.Targets.length > 0) {
-				lookupTargets.set(attr.LogicalName, attr.Targets);
+			for (const attr of (response.value || []) as Array<{ LogicalName: string; Targets?: string[] }>) {
+				if (attr.LogicalName && attr.Targets && attr.Targets.length > 0) {
+					lookupTargets.set(attr.LogicalName, attr.Targets);
+				}
 			}
+		} catch {
+			// If metadata lookup fails, fall back to treating all fields as non-lookup values
 		}
-	} catch {
-		// If metadata lookup fails, fall back to treating all fields as non-lookup values
-	}
 
-	return lookupTargets;
+		return lookupTargets;
+	});
 }
 
 /**
@@ -1049,70 +1229,160 @@ async function getFieldAttributeTypes(
 	logicalName: string,
 	itemIndex?: number,
 ): Promise<Map<string, string>> {
-	const attributeTypes = new Map<string, string>();
+	return getCached(this, `attributeTypes:${logicalName}`, async () => {
+		const attributeTypes = new Map<string, string>();
 
+		try {
+			const response = (await dataverseApiRequest.call(
+				this,
+				'GET',
+				`/EntityDefinitions(LogicalName='${logicalName}')/Attributes`,
+				undefined,
+				{ $select: 'LogicalName,AttributeType' },
+				itemIndex,
+			)) as DataverseApiResponse;
+
+			for (const attr of (response.value || []) as Array<{ LogicalName: string; AttributeType?: string }>) {
+				if (attr.LogicalName && attr.AttributeType) {
+					attributeTypes.set(attr.LogicalName, attr.AttributeType);
+				}
+			}
+		} catch {
+			// If metadata lookup fails, fall back to treating all fields as raw string values
+		}
+
+		return attributeTypes;
+	});
+}
+
+/**
+ * Parse a raw lookup/alternate-key field value as a JSON object of field/value pairs (e.g.
+ * `{"accountnumber": "12345"}`), returning `null` if it isn't valid JSON or isn't a plain
+ * object. JSON is used (rather than a custom delimited string) so standard JSON escaping rules
+ * apply to values that contain commas, quotes, or other special characters.
+ */
+function parseAlternateKeyJson(rawValue: unknown): Array<{ name: string; value: string }> | null {
+	let parsed: unknown;
 	try {
+		parsed = JSON.parse(String(rawValue).trim());
+	} catch {
+		return null;
+	}
+
+	if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+		return null;
+	}
+
+	return Object.entries(parsed as Record<string, unknown>).map(([name, value]) => ({
+		name,
+		value: String(value),
+	}));
+}
+
+/**
+ * Get a table's primary ID attribute LogicalName (e.g. `accountid`), required to fetch just the
+ * GUID of a record resolved by alternate key.
+ */
+async function getPrimaryIdAttribute(
+	this: IExecuteFunctions,
+	logicalName: string,
+	itemIndex?: number,
+): Promise<string> {
+	return getCached(this, `primaryIdAttribute:${logicalName}`, async () => {
 		const response = (await dataverseApiRequest.call(
 			this,
 			'GET',
-			`/EntityDefinitions(LogicalName='${logicalName}')/Attributes`,
+			`/EntityDefinitions(LogicalName='${logicalName}')`,
 			undefined,
-			{ $select: 'LogicalName,AttributeType' },
+			{ $select: 'PrimaryIdAttribute' },
 			itemIndex,
-		)) as DataverseApiResponse;
+		)) as IDataObject;
 
-		for (const attr of (response.value || []) as Array<{ LogicalName: string; AttributeType?: string }>) {
-			if (attr.LogicalName && attr.AttributeType) {
-				attributeTypes.set(attr.LogicalName, attr.AttributeType);
-			}
-		}
-	} catch {
-		// If metadata lookup fails, fall back to treating all fields as raw string values
-	}
-
-	return attributeTypes;
+		return response.PrimaryIdAttribute as string;
+	});
 }
 
-const GUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+/**
+ * Build the OData key predicate (e.g. `accountnumber='ABC',_primarycontactid_value=<guid>`) for
+ * a table's own alternate key, formatting each value per its attribute type and using the
+ * `_<name>_value` Lookup Property name for any key fields that are themselves Lookups. Does not
+ * resolve nested JSON on lookup-typed key fields - only plain values are supported at this
+ * level (used both as the final key predicate and as a target-record locator, e.g. inside an
+ * `@odata.bind` URL where Dataverse supports referencing a record by alternate key directly).
+ */
+async function buildAlternateKeyPredicate(
+	this: IExecuteFunctions,
+	logicalName: string,
+	alternateKeys: Array<{ name: string; value: string }>,
+	itemIndex?: number,
+): Promise<string> {
+	const [attributeTypes, lookupTargets] = await Promise.all([
+		getFieldAttributeTypes.call(this, logicalName, itemIndex),
+		getLookupFieldTargets.call(this, logicalName, itemIndex),
+	]);
+
+	const keyPairs = alternateKeys.map((key) => {
+		const isLookup = lookupTargets.has(key.name);
+		const urlKeyName = formatAlternateKeyName(key.name, isLookup);
+		return `${urlKeyName}=${formatAlternateKeyValue(key.value, attributeTypes.get(key.name))}`;
+	});
+
+	return keyPairs.join(',');
+}
+
+/**
+ * Resolve a JSON alternate-key expression on a target table down to that record's GUID, by
+ * building the target table's own alternate-key identifier (formatted per its field metadata)
+ * and fetching just its primary ID attribute.
+ */
+async function resolveAlternateKeyToGuid(
+	this: IExecuteFunctions,
+	targetLogicalName: string,
+	targetEntitySet: string,
+	alternateKeys: Array<{ name: string; value: string }>,
+	itemIndex?: number,
+): Promise<string> {
+	const [targetKeyIdentifier, primaryIdAttribute] = await Promise.all([
+		buildAlternateKeyPredicate.call(this, targetLogicalName, alternateKeys, itemIndex),
+		getPrimaryIdAttribute.call(this, targetLogicalName, itemIndex),
+	]);
+
+	const response = (await dataverseApiRequest.call(
+		this,
+		'GET',
+		`/${targetEntitySet}(${targetKeyIdentifier})`,
+		undefined,
+		{ $select: primaryIdAttribute },
+		itemIndex,
+	)) as IDataObject;
+
+	return response[primaryIdAttribute] as string;
+}
 
 /**
  * Build the identifier used inside an `@odata.bind` reference for a lookup field, supporting
  * either a raw GUID or a JSON object of alternate key field/value pairs on the target table
- * (e.g. `{"accountnumber": "12345"}` or `{"key1": "value1", "key2": "value2"}`). JSON is used
- * (rather than a custom delimited string) so standard JSON escaping rules apply to values that
- * contain commas, quotes, or other special characters.
+ * (e.g. `{"accountnumber": "12345"}` or `{"key1": "value1", "key2": "value2"}`).
  */
-function buildLookupBindIdentifier(rawValue: string): string {
-	const trimmed = rawValue.trim();
+async function buildLookupBindIdentifier(
+	this: IExecuteFunctions,
+	rawValue: unknown,
+	targetLogicalName: string,
+	itemIndex?: number,
+): Promise<string> {
+	const trimmed = String(rawValue).trim();
 	if (GUID_REGEX.test(trimmed)) {
 		return trimmed;
 	}
 
-	const invalidValueError = new Error(
-		`Invalid lookup value "${rawValue}". Expected a GUID or a JSON object of alternate key field/value pairs, e.g. {"keyname": "value"}.`,
-	);
-
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(trimmed);
-	} catch {
-		throw invalidValueError;
+	const alternateKeys = parseAlternateKeyJson(trimmed);
+	if (!alternateKeys || alternateKeys.length === 0) {
+		throw new Error(
+			`Invalid lookup value "${rawValue}". Expected a GUID or a JSON object of alternate key field/value pairs, e.g. {"keyname": "value"}.`,
+		);
 	}
 
-	if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-		throw invalidValueError;
-	}
-
-	const alternateKeys = Object.entries(parsed as Record<string, unknown>).map(([name, value]) => ({
-		name,
-		value: String(value),
-	}));
-
-	if (alternateKeys.length === 0) {
-		throw new Error(`Invalid lookup value "${rawValue}". The alternate key object must have at least one field.`);
-	}
-
-	return buildRecordIdentifier('alternateKey', undefined, alternateKeys);
+	return buildAlternateKeyPredicate.call(this, targetLogicalName, alternateKeys, itemIndex);
 }
 
 /**
@@ -1258,8 +1528,9 @@ export async function fieldsToRequestBody(
 				body[`${field.name}@odata.bind`] = null;
 				continue;
 			}
-			const targetEntitySet = await resolveEntitySetName.call(this, targets[0], itemIndex);
-			const identifier = buildLookupBindIdentifier(field.value);
+			const targetLogicalName = targets[0];
+			const targetEntitySet = await resolveEntitySetName.call(this, targetLogicalName, itemIndex);
+			const identifier = await buildLookupBindIdentifier.call(this, field.value, targetLogicalName, itemIndex);
 			body[`${field.name}@odata.bind`] = `/${targetEntitySet}(${identifier})`;
 		} else {
 			body[field.name] = (await coerceFieldValue.call(
