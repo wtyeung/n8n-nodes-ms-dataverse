@@ -26,28 +26,55 @@ Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes
 
 ## Operations
 
-This node supports the following operations on Dataverse records:
+Operations below are ordered roughly by how often they're used.
 
-### Record Operations
+### SQL Query via TDS (Read-Only)
 
-- **Assign**: Assign a record to a user or team (change ownership)
+Run SQL directly against Dataverse using the Tabular Data Stream (TDS) endpoint — the fastest way to read/report on data with familiar SQL syntax.
+
+- **Execute Query**: Run standard SQL `SELECT` statements
+- Read-only (no `INSERT`, `UPDATE`, `DELETE`)
+- Requires the TDS endpoint to be enabled in your Dataverse environment (see [Usage](#executing-sql-queries-via-tds))
+- Supports joins, filtering, ordering, and aggregation like any standard SQL query
+
+### Record Operations (CRUD)
+
+Core create/read/update/delete operations on Dataverse records.
+
 - **Create**: Create a new record in a table
-- **Delete**: Delete a record by ID or alternate key
 - **Get**: Retrieve a single record by ID or alternate key
 - **Get Many**: Retrieve multiple records using OData queries or FetchXML
 - **Update**: Update an existing record by ID or alternate key
-- **Upsert**: Create a new record or update if it exists (based on alternate key)
+- **Delete**: Delete a record by ID or alternate key
+- **Upsert**: Create a new record or update it if it exists (matched by alternate key)
+- **Assign**: Assign a record to a user or team (change ownership)
 - **Share Access Add**: Grant access to a record for a user or team
 - **Share Access List**: List all users and teams who have access to a record
 - **Share Access Revoke**: Revoke access to a record from a user or team
 
-#### Choice Field Helper
+**Alternate Key Support:** Every record operation above (Get, Update, Delete, Upsert, Assign, Share Access Add/List/Revoke) supports identifying the target record by **alternate key** instead of a GUID, with dynamic dropdowns for key names loaded from the table's defined keys. See [Using Alternate Keys](#using-alternate-keys).
 
-When working with choice (picklist) fields in Create, Update, or Upsert operations:
-- **View Choice Field**: Select a field name to view its available options
-- **Choice Options Viewer**: Displays options in "Label (Value)" format
-- Supports both Local Choice (OptionSet) and Global Choice (GlobalOptionSet)
-- Copy the numeric value to use in your field values
+#### Flexible Field Values: Lookup and Choice Fields
+
+Setting **Field Value** for a Lookup or Choice field no longer requires you to manually resolve GUIDs or option values yourself — the node handles it automatically:
+
+- **Lookup fields**: Provide either
+  - A raw GUID: `38e7a47b-45a7-f111-aaad-00224815d088`, or
+  - A JSON object of alternate key field/value pairs on the target table: `{"accountnumber": "12345"}` (or multiple keys: `{"key1": "value1", "key2": "value2"}`)
+
+  The node resolves this to the correct `@odata.bind` navigation-property reference automatically, saving you a separate lookup step in your workflow.
+
+- **Choice / Picklist fields**: Provide either
+  - The numeric option value: `1`, or
+  - The option's display label: `Active`
+
+  The node looks up the field's OptionSet/GlobalOptionSet metadata and resolves the label to the correct integer value.
+
+- **Boolean fields**: Provide `true`/`false` (also accepts `1`/`0`/`yes`/`no`) — the node sends a proper JSON boolean, not a string.
+
+- **Text fields**: If a value resolved via an expression happens to be a number or boolean, it's automatically sent as a string rather than a raw JSON number/boolean.
+
+See [Setting Lookup and Choice Fields](#setting-lookup-and-choice-fields) for examples.
 
 ### Global Choice Operations
 
@@ -80,45 +107,6 @@ Manage many-to-many relationships between records:
 - Link a user to a team
 - Connect products to categories
 - Relate any two entities with a many-to-many relationship
-
-### Table Operations
-
-Create custom tables with field definitions:
-
-- **Create**: Create a new custom table with fields
-
-**Parameters:**
-- **Solution Name or ID**: (Optional) The solution to create the table in. Select from available solutions or leave empty for default solution.
-- **Schema Name**: The schema name for the table (e.g., `new_customtable`)
-- **Display Name**: The display name for the table
-- **Plural Display Name**: The plural display name
-- **Primary Name Field**: Schema name for the primary name field (e.g., `new_name`)
-- **Primary Name Display Name**: Display name for the primary name field
-
-**Best Practice:** Always specify a solution for production environments to enable proper Application Lifecycle Management (ALM).
-
-**Additional Fields:**
-Define custom fields with the following types:
-- **String**: Text field with configurable max length
-- **Memo**: Multi-line text field
-- **Integer**: Whole number with min/max values
-- **Decimal**: Decimal number with precision
-- **Money**: Currency field with precision
-- **Boolean**: Yes/No field
-- **DateTime**: Date and time field
-- **Picklist**: Choice field (options can be added later)
-
-Each field supports:
-- Display name and description
-- Required level (None, Recommended, Required)
-- Type-specific settings (max length, precision, min/max values)
-
-### SQL Query via TDS (Read-Only)
-
-- **Execute Query**: Run SQL queries directly against Dataverse using the Tabular Data Stream (TDS) endpoint
-  - Supports standard SQL SELECT statements
-  - Read-only access (no INSERT, UPDATE, DELETE)
-  - Requires TDS endpoint to be enabled in your Dataverse environment
 
 ### Webhook Operations
 
@@ -165,19 +153,55 @@ Supported web resource types: HTML, CSS, JavaScript, XML, PNG, JPG, GIF, XAP (Si
 
 For text-based types (JS, CSS, HTML, XML), provide raw code — it will be base64-encoded automatically. For binary types (images), provide pre-encoded base64 content.
 
+### Table Operations
+
+Create custom tables with field definitions:
+
+- **Create**: Create a new custom table with fields
+
+**Parameters:**
+- **Solution Name or ID**: (Optional) The solution to create the table in. Select from available solutions or leave empty for default solution.
+- **Schema Name**: The schema name for the table (e.g., `new_customtable`)
+- **Display Name**: The display name for the table
+- **Plural Display Name**: The plural display name
+- **Primary Name Field**: Schema name for the primary name field (e.g., `new_name`)
+- **Primary Name Display Name**: Display name for the primary name field
+
+**Best Practice:** Always specify a solution for production environments to enable proper Application Lifecycle Management (ALM).
+
+**Additional Fields:**
+Define custom fields with the following types:
+- **String**: Text field with configurable max length
+- **Memo**: Multi-line text field
+- **Integer**: Whole number with min/max values
+- **Decimal**: Decimal number with precision
+- **Money**: Currency field with precision
+- **Boolean**: Yes/No field
+- **DateTime**: Date and time field
+- **Picklist**: Choice field (options can be added later)
+
+Each field supports:
+- Display name and description
+- Required level (None, Recommended, Required)
+- Type-specific settings (max length, precision, min/max values)
+
 ### Features
 
+- **TDS/SQL Support**: Execute SQL queries for fast, familiar data retrieval and analysis
+- **Alternate Key Support**: All record operations support alternate keys with dynamic field selection, in addition to GUIDs
+- **Flexible Lookup Input**: Set Lookup fields by raw GUID or by a JSON alternate key expression on the target table — no separate lookup step needed
+- **Flexible Choice Input**: Set Choice/Picklist fields by numeric value or by display label
+- **Automatic Type Coercion**: Boolean, numeric, and text field values are automatically converted to the JSON type Dataverse expects
 - **Dynamic Table Discovery**: Automatically loads available tables from your Dataverse environment using the OData metadata endpoint
 - **Dynamic Field Selection**: Field names load from table metadata with dropdowns showing display name, logical name, and type
-- **Alternate Key Support**: All record operations (Get, Update, Delete, Share) support alternate keys with dynamic field selection
+- **Entity Set Name Resolution**: Table names entered by logical name or entity set name (via "By Name"/"By ID") are automatically resolved to the correct API endpoint
 - **Image & File Downloads**: Automatically detect and download image and file fields as binary data
 - **OData Support**: Use OData query syntax for filtering, sorting, and selecting fields
 - **FetchXML Support**: Execute complex queries using FetchXML
-- **TDS/SQL Support**: Execute SQL queries for complex data retrieval and analysis
 - **JSON Input Mode**: Create, Update, and Upsert operations support both field collection and JSON input modes
 - **Access Control**: Share records with users/teams, list access, and revoke access with UPN/team name lookup
 - **Custom Authentication**: Use custom environment URL and access token for environments without OAuth2 setup
-- **Enhanced Error Messages**: Detailed error messages with HTTP status codes and Dataverse error codes
+- **Detailed Error Messages**: Surfaces the actual Dataverse/OData error message, HTTP status, and error code instead of a generic status message
 
 ## Credentials
 
@@ -243,6 +267,56 @@ Use this option when you have an access token but don't have OAuth2 configured i
 
 ## Usage
 
+### Executing SQL Queries via TDS
+
+#### Prerequisites
+
+1. **Enable TDS Endpoint** in your Dataverse environment:
+   - Go to [Power Platform Admin Center](https://admin.powerplatform.microsoft.com/)
+   - Select your environment
+   - Go to **Settings** → **Product** → **Features**
+   - Enable **"Tabular Data Stream (TDS) endpoint"**
+   - Save changes
+
+2. **Configure IP Firewall** (if applicable):
+   - Ensure your n8n instance IP is allowed in Dataverse firewall rules
+
+3. **OAuth2 Scope**: Ensure your OAuth2 token includes the scope: `https://yourorg.crm.dynamics.com/.default`
+
+#### Using SQL Queries
+
+1. Select **SQL Query via TDS (Read-Only)** as the resource
+2. Select **Execute Query** operation
+3. Enter your SQL query (e.g., `SELECT TOP 10 name, emailaddress1 FROM account`)
+4. Execute the workflow
+
+#### Example SQL Queries
+
+**Get top 10 accounts:**
+```sql
+SELECT TOP 10 accountid, name, emailaddress1, createdon 
+FROM account 
+ORDER BY createdon DESC
+```
+
+**Filter with WHERE clause:**
+```sql
+SELECT name, revenue, industrycode 
+FROM account 
+WHERE revenue > 1000000 
+AND statecode = 0
+```
+
+**Join tables:**
+```sql
+SELECT a.name, c.fullname, c.emailaddress1
+FROM account a
+INNER JOIN contact c ON a.accountid = c.parentcustomerid
+WHERE a.statecode = 0
+```
+
+**Note:** TDS endpoint is read-only. INSERT, UPDATE, and DELETE operations are not supported.
+
 ### Creating a Record
 
 1. Select **Create** operation
@@ -250,24 +324,9 @@ Use this option when you have an access token but don't have OAuth2 configured i
 3. Add fields and their values
 4. Execute the workflow
 
-### Retrieving Records with OData
-
-1. Select **Get Many** operation
-2. Choose **OData** as query type
-3. Use the filter field to add OData filters (e.g., `name eq 'Contoso'`)
-4. Optionally add ordering and field selection
-5. Set the limit for maximum records to return
-
-### Retrieving Records with FetchXML
-
-1. Select **Get Many** operation
-2. Choose **FetchXML** as query type
-3. Enter your complete FetchXML query
-4. Execute the workflow
-
 ### Using Alternate Keys
 
-Alternate keys allow you to identify records using business keys instead of GUIDs. Supported operations: Get, Update, Delete, Upsert, Share Access Add, Share Access List, Share Access Revoke.
+Alternate keys allow you to identify records using business keys instead of GUIDs. Supported operations: Get, Update, Delete, Upsert, Assign, Share Access Add, Share Access List, Share Access Revoke.
 
 1. Select any supported operation
 2. Choose **Alternate Key** as Record ID Type
@@ -275,7 +334,7 @@ Alternate keys allow you to identify records using business keys instead of GUID
 4. Enter the key value
 5. Execute the workflow
 
-### Example: Get Account by Email
+#### Example: Get Account by Email
 
 ```
 Operation: Get
@@ -286,7 +345,7 @@ Alternate Keys:
   - Key Value: contact@example.com
 ```
 
-### Using Upsert Operation
+#### Using Upsert Operation
 
 Upsert creates a new record if it doesn't exist, or updates it if it does (based on alternate keys).
 
@@ -309,6 +368,40 @@ Table: contacts
 Fields:
   - Field Name: firstname
   - Field Value: John
+```
+
+### Setting Lookup and Choice Fields
+
+When adding fields in Create, Update, or Upsert, Lookup and Choice fields accept flexible input so you don't need a separate lookup step in your workflow.
+
+**Lookup field by GUID:**
+```
+Field Name: primarycontactid
+Field Value: 38e7a47b-45a7-f111-aaad-00224815d088
+```
+
+**Lookup field by alternate key on the target table:**
+```
+Field Name: parentaccountid
+Field Value: {"accountnumber": "ACC-001"}
+```
+
+**Choice field by numeric value:**
+```
+Field Name: statuscode
+Field Value: 1
+```
+
+**Choice field by display label:**
+```
+Field Name: statuscode
+Field Value: Active
+```
+
+**Boolean field:**
+```
+Field Name: donotemail
+Field Value: true
 ```
 
 ### Managing Record Access
@@ -361,61 +454,26 @@ Principal ID Type: UPN
 User Principal Name: user@example.com
 ```
 
-### Executing SQL Queries via TDS
+### Retrieving Records with OData
 
-#### Prerequisites
+1. Select **Get Many** operation
+2. Choose **OData** as query type
+3. Use the filter field to add OData filters (e.g., `name eq 'Contoso'`)
+4. Optionally add ordering and field selection
+5. Set the limit for maximum records to return
 
-1. **Enable TDS Endpoint** in your Dataverse environment:
-   - Go to [Power Platform Admin Center](https://admin.powerplatform.microsoft.com/)
-   - Select your environment
-   - Go to **Settings** → **Product** → **Features**
-   - Enable **"Tabular Data Stream (TDS) endpoint"**
-   - Save changes
+### Retrieving Records with FetchXML
 
-2. **Configure IP Firewall** (if applicable):
-   - Ensure your n8n instance IP is allowed in Dataverse firewall rules
-
-3. **OAuth2 Scope**: Ensure your OAuth2 token includes the scope: `https://yourorg.crm.dynamics.com/.default`
-
-#### Using SQL Queries
-
-1. Select **SQL Query via TDS (Read-Only)** as the resource
-2. Select **Execute Query** operation
-3. Enter your SQL query (e.g., `SELECT TOP 10 name, emailaddress1 FROM account`)
+1. Select **Get Many** operation
+2. Choose **FetchXML** as query type
+3. Enter your complete FetchXML query
 4. Execute the workflow
-
-#### Example SQL Queries
-
-**Get top 10 accounts:**
-```sql
-SELECT TOP 10 accountid, name, emailaddress1, createdon 
-FROM account 
-ORDER BY createdon DESC
-```
-
-**Filter with WHERE clause:**
-```sql
-SELECT name, revenue, industrycode 
-FROM account 
-WHERE revenue > 1000000 
-AND statecode = 0
-```
-
-**Join tables:**
-```sql
-SELECT a.name, c.fullname, c.emailaddress1
-FROM account a
-INNER JOIN contact c ON a.accountid = c.parentcustomerid
-WHERE a.statecode = 0
-```
-
-**Note:** TDS endpoint is read-only. INSERT, UPDATE, and DELETE operations are not supported.
 
 ### Viewing Table Field Schemas
 
-To discover available fields and their logical names for a table:
+To discover available fields and their logical names for a table when writing SQL queries:
 
-1. Select any operation (Create, Get, Update, Get Many, or SQL Query)
+1. Select the **SQL Query via TDS** resource
 2. Choose a table from the dropdown
 3. Look for the **View Table Fields (Reference Only)** dropdown
 4. Click to load and browse all available fields
@@ -425,7 +483,7 @@ To discover available fields and their logical names for a table:
    - Field Type (e.g., "String", "Lookup", "DateTime")
    - Permissions: [C] = Create, [U] = Update, [R] = Read
 
-**Note:** This field is for reference only and doesn't affect the operation. Use the logical names you discover here in your field mappings and queries.
+**Note:** This field is for reference only and doesn't affect the operation.
 
 ### Downloading Images and Files
 
