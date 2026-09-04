@@ -412,57 +412,7 @@ export const fieldSchemaSelector: INodeProperties = {
 	placeholder: 'Select a table first...',
 };
 
-export const showChoiceOptionsViewerDescription: INodeProperties = {
-	displayName: 'Show Choice Options Viewer',
-	name: 'showChoiceOptionsViewer',
-	type: 'boolean',
-	default: false,
-	displayOptions: {
-		show: {
-			resource: ['record'],
-			operation: ['create', 'update', 'upsert'],
-		},
-	},
-	description: 'Whether to show reference-only helper fields for looking up a choice field\'s available options and their integer values',
-};
 
-export const choiceFieldSelector: INodeProperties = {
-	displayName: 'View Choice Field Name or ID',
-	name: 'viewChoiceField',
-	type: 'options',
-	typeOptions: {
-		loadOptionsMethod: 'getTableFieldNames',
-	},
-	displayOptions: {
-		show: {
-			resource: ['record'],
-			operation: ['create', 'update', 'upsert'],
-			showChoiceOptionsViewer: [true],
-		},
-	},
-	default: '',
-	description: 'Select a choice field to view its available options with values. This helps you find the correct integer value to use when setting choice fields. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
-	placeholder: 'Select a field...',
-};
-
-export const choiceOptionsViewer: INodeProperties = {
-	displayName: 'Choice Options (Reference Only) Name or ID',
-	name: 'viewChoiceOptions',
-	type: 'options',
-	typeOptions: {
-		loadOptionsMethod: 'getChoiceFieldOptions',
-	},
-	displayOptions: {
-		show: {
-			resource: ['record'],
-			operation: ['create', 'update', 'upsert'],
-			showChoiceOptionsViewer: [true],
-		},
-	},
-	default: '',
-	description: 'Reference only: Shows available options for the selected choice field in "Label (Value)" format. Copy the value (number) to use in your field values. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
-	placeholder: 'Select a choice field first...',
-};
 
 export const createOperationFields: INodeProperties[] = [
 	{
@@ -525,7 +475,7 @@ export const createOperationFields: INodeProperties[] = [
 						name: 'value',
 						type: 'string',
 						default: '',
-						description: 'Value to set for the field',
+						description: 'Value to set for the field. For Lookup fields, provide either a GUID or a JSON object of alternate key field/value pairs (e.g. {"keyname": "value"}). For Choice/Picklist fields, provide either the numeric value or the option\'s display label.',
 					},
 				],
 			},
@@ -752,7 +702,7 @@ export const upsertOperationFields: INodeProperties[] = [
 						name: 'value',
 						type: 'string',
 						default: '',
-						description: 'Value for the field',
+						description: 'Value for the field. For Lookup fields, provide either a GUID or a JSON object of alternate key field/value pairs (e.g. {"keyname": "value"}). For Choice/Picklist fields, provide either the numeric value or the option\'s display label.',
 					},
 				],
 			},
@@ -1194,7 +1144,7 @@ export const updateOperationFields: INodeProperties[] = [
 						name: 'value',
 						type: 'string',
 						default: '',
-						description: 'New value for the field',
+						description: 'New value for the field. For Lookup fields, provide either a GUID or a JSON object of alternate key field/value pairs (e.g. {"keyname": "value"}). For Choice/Picklist fields, provide either the numeric value or the option\'s display label.',
 					},
 				],
 			},

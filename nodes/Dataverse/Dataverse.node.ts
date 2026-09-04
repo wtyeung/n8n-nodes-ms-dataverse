@@ -7,15 +7,12 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import { searchTables, getTableFieldsForDisplay, getTableFieldNames, getAlternateKeyFields, getChoiceFieldOptions, getSolutions, getGlobalChoicesForDropdown, getRelationships, resolveEntitySetName } from './GenericFunctions';
+import { searchTables, getTableFieldsForDisplay, getTableFieldNames, getAlternateKeyFields, getSolutions, getGlobalChoicesForDropdown, getRelationships, resolveEntitySetName } from './GenericFunctions';
 import {
 	resourceDescription,
 	operationDescription,
 	tableDescription,
 	fieldSchemaSelector,
-	showChoiceOptionsViewerDescription,
-	choiceFieldSelector,
-	choiceOptionsViewer,
 	createOperationFields,
 	getOperationFields,
 	updateOperationFields,
@@ -138,9 +135,6 @@ export class Dataverse implements INodeType {
 			...webhookOperationFields,
 			tableDescription,
 			fieldSchemaSelector,
-			showChoiceOptionsViewerDescription,
-			choiceFieldSelector,
-			choiceOptionsViewer,
 			...createOperationFields,
 			...getOperationFields,
 			...updateOperationFields,
@@ -165,7 +159,6 @@ export class Dataverse implements INodeType {
 			getTableFieldsForDisplay,
 			getTableFieldNames,
 			getAlternateKeyFields,
-			getChoiceFieldOptions,
 			getSolutions,
 			getGlobalChoicesForDropdown,
 			getRelationships,

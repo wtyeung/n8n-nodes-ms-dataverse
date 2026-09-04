@@ -954,7 +954,8 @@ export function buildRecordIdentifier(
 	}
 
 	if (recordIdType === 'alternateKey' && alternateKeys) {
-		const keyPairs = alternateKeys.map((key) => `${key.name}='${key.value}'`);
+		// Escape single quotes per OData string literal rules (a literal `'` is represented as `''`)
+		const keyPairs = alternateKeys.map((key) => `${key.name}='${key.value.replace(/'/g, "''")}'`);
 		return keyPairs.join(',');
 	}
 
@@ -1039,11 +1040,198 @@ async function getLookupFieldTargets(
 }
 
 /**
+ * Get a map of field LogicalNames to their AttributeType (e.g. "Boolean", "Integer", "Picklist")
+ * for a table, used to coerce string field values entered in the UI into the JSON types
+ * Dataverse expects.
+ */
+async function getFieldAttributeTypes(
+	this: IExecuteFunctions,
+	logicalName: string,
+	itemIndex?: number,
+): Promise<Map<string, string>> {
+	const attributeTypes = new Map<string, string>();
+
+	try {
+		const response = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			`/EntityDefinitions(LogicalName='${logicalName}')/Attributes`,
+			undefined,
+			{ $select: 'LogicalName,AttributeType' },
+			itemIndex,
+		)) as DataverseApiResponse;
+
+		for (const attr of (response.value || []) as Array<{ LogicalName: string; AttributeType?: string }>) {
+			if (attr.LogicalName && attr.AttributeType) {
+				attributeTypes.set(attr.LogicalName, attr.AttributeType);
+			}
+		}
+	} catch {
+		// If metadata lookup fails, fall back to treating all fields as raw string values
+	}
+
+	return attributeTypes;
+}
+
+const GUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+/**
+ * Build the identifier used inside an `@odata.bind` reference for a lookup field, supporting
+ * either a raw GUID or a JSON object of alternate key field/value pairs on the target table
+ * (e.g. `{"accountnumber": "12345"}` or `{"key1": "value1", "key2": "value2"}`). JSON is used
+ * (rather than a custom delimited string) so standard JSON escaping rules apply to values that
+ * contain commas, quotes, or other special characters.
+ */
+function buildLookupBindIdentifier(rawValue: string): string {
+	const trimmed = rawValue.trim();
+	if (GUID_REGEX.test(trimmed)) {
+		return trimmed;
+	}
+
+	const invalidValueError = new Error(
+		`Invalid lookup value "${rawValue}". Expected a GUID or a JSON object of alternate key field/value pairs, e.g. {"keyname": "value"}.`,
+	);
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(trimmed);
+	} catch {
+		throw invalidValueError;
+	}
+
+	if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+		throw invalidValueError;
+	}
+
+	const alternateKeys = Object.entries(parsed as Record<string, unknown>).map(([name, value]) => ({
+		name,
+		value: String(value),
+	}));
+
+	if (alternateKeys.length === 0) {
+		throw new Error(`Invalid lookup value "${rawValue}". The alternate key object must have at least one field.`);
+	}
+
+	return buildRecordIdentifier('alternateKey', undefined, alternateKeys);
+}
+
+/**
+ * Resolve a choice (Picklist/State/Status) field's option label (e.g. "Active") to its
+ * underlying integer value, so users can enter a human-readable label instead of looking up the
+ * numeric value themselves. Supports both Local Choice (OptionSet) and Global Choice
+ * (GlobalOptionSet) fields.
+ */
+async function resolveChoiceLabelToValue(
+	this: IExecuteFunctions,
+	logicalName: string,
+	fieldName: string,
+	label: string,
+	itemIndex?: number,
+): Promise<number | null> {
+	try {
+		const response = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			`/EntityDefinitions(LogicalName='${logicalName}')/Attributes(LogicalName='${fieldName}')`,
+			undefined,
+			{
+				$select: 'LogicalName,AttributeType',
+				$expand: 'OptionSet($select=Options),GlobalOptionSet($select=Options,Name)',
+			},
+			itemIndex,
+		)) as IDataObject;
+
+		const optionSet = (response.OptionSet ?? response.GlobalOptionSet) as IDataObject | undefined;
+		const options = (optionSet?.Options ?? []) as Array<{
+			Value: number;
+			Label?: { UserLocalizedLabel?: { Label?: string } };
+		}>;
+
+		const normalizedLabel = label.trim().toLowerCase();
+		const match = options.find(
+			(option) => option.Label?.UserLocalizedLabel?.Label?.trim().toLowerCase() === normalizedLabel,
+		);
+
+		return match ? match.Value : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Coerce a raw field value (as entered in the UI) into the JSON type Dataverse expects for a
+ * given attribute type. Sending e.g. the string "true" for a Boolean field, or "1" for a
+ * Picklist field, is rejected by Dataverse's OData parser, which requires actual JSON
+ * booleans/numbers rather than quoted strings. Also resolves Choice field display labels (e.g.
+ * "Active") to their underlying numeric value, and ensures numbers entered for text fields are
+ * sent as strings.
+ */
+async function coerceFieldValue(
+	this: IExecuteFunctions,
+	value: unknown,
+	attributeType: string | undefined,
+	logicalName: string,
+	fieldName: string,
+	itemIndex?: number,
+): Promise<unknown> {
+	const isEmpty = value === '' || value === undefined || value === null;
+
+	switch (attributeType) {
+		case 'Boolean':
+			if (isEmpty) {
+				return null;
+			}
+			return ['true', '1', 'yes'].includes(String(value).trim().toLowerCase());
+		case 'Integer':
+		case 'BigInt':
+		case 'Decimal':
+		case 'Double':
+		case 'Money': {
+			if (isEmpty) {
+				return null;
+			}
+			const numericValue = Number(value);
+			return Number.isNaN(numericValue) ? value : numericValue;
+		}
+		case 'Picklist':
+		case 'State':
+		case 'Status': {
+			if (isEmpty) {
+				return null;
+			}
+			const numericValue = Number(value);
+			if (!Number.isNaN(numericValue)) {
+				return numericValue;
+			}
+			// Not a number - treat it as a choice display label and resolve it to its value
+			const resolvedValue = await resolveChoiceLabelToValue.call(
+				this,
+				logicalName,
+				fieldName,
+				String(value),
+				itemIndex,
+			);
+			return resolvedValue ?? value;
+		}
+		default:
+			// Text-like fields (String, Memo) or unrecognized types: ensure non-string
+			// primitives (e.g. numbers resolved from an expression) are sent as strings,
+			// rather than as JSON numbers/booleans.
+			if (typeof value === 'number' || typeof value === 'boolean') {
+				return String(value);
+			}
+			return value;
+	}
+}
+
+/**
  * Convert a field array into an API request body, resolving lookup fields to the `@odata.bind`
  * navigation-property syntax Dataverse requires (e.g. `"field@odata.bind": "/accounts(guid)"`)
- * instead of sending the raw GUID as a primitive value, which Dataverse rejects with an
- * ODataException like "A 'PrimitiveValue' node with non-null value was found... however, a
- * 'StartArray' node, a 'StartObject' node... was expected."
+ * instead of sending the raw GUID as a primitive value, and coercing values for Boolean/
+ * numeric/Picklist fields into their proper JSON types instead of quoted strings. Sending the
+ * wrong JSON type is rejected by Dataverse's OData parser with errors like "A 'PrimitiveValue'
+ * node with non-null value was found... however, a 'StartArray' node, a 'StartObject' node...
+ * was expected."
  */
 export async function fieldsToRequestBody(
 	this: IExecuteFunctions,
@@ -1057,7 +1245,10 @@ export async function fieldsToRequestBody(
 	}
 
 	const logicalName = await resolveLogicalName.call(this, table, itemIndex);
-	const lookupTargets = await getLookupFieldTargets.call(this, logicalName, itemIndex);
+	const [lookupTargets, attributeTypes] = await Promise.all([
+		getLookupFieldTargets.call(this, logicalName, itemIndex),
+		getFieldAttributeTypes.call(this, logicalName, itemIndex),
+	]);
 
 	for (const field of fields) {
 		const targets = lookupTargets.get(field.name);
@@ -1068,9 +1259,17 @@ export async function fieldsToRequestBody(
 				continue;
 			}
 			const targetEntitySet = await resolveEntitySetName.call(this, targets[0], itemIndex);
-			body[`${field.name}@odata.bind`] = `/${targetEntitySet}(${field.value})`;
+			const identifier = buildLookupBindIdentifier(field.value);
+			body[`${field.name}@odata.bind`] = `/${targetEntitySet}(${identifier})`;
 		} else {
-			body[field.name] = field.value;
+			body[field.name] = (await coerceFieldValue.call(
+				this,
+				field.value,
+				attributeTypes.get(field.name),
+				logicalName,
+				field.name,
+				itemIndex,
+			)) as string | number | boolean | null;
 		}
 	}
 
@@ -1102,160 +1301,6 @@ export function buildODataQuery(
 	}
 
 	return qs;
-}
-
-/**
- * Get choice field options for a specific field
- * Supports both Local Choice (OptionSet) and Global Choice (GlobalOptionSet)
- */
-export async function getChoiceFieldOptions(
-	this: ILoadOptionsFunctions,
-): Promise<INodePropertyOptions[]> {
-	const returnData: INodePropertyOptions[] = [];
-
-	try {
-		const table = this.getNodeParameter('table', 0) as { mode: string; value: string };
-		const tableValue = table?.value;
-
-		if (!tableValue) {
-			return [
-				{
-					name: 'Please select a table first',
-					value: '',
-				},
-			];
-		}
-
-		// Get the choice field name that user wants to view
-		const choiceFieldName = this.getNodeParameter('viewChoiceField', 0) as string;
-
-		if (!choiceFieldName) {
-			return [
-				{
-					name: 'Please select a field to view its options',
-					value: '',
-				},
-			];
-		}
-
-		// Get the logical name from entity set name
-		let logicalName = tableValue;
-		try {
-			const entityResponse = (await dataverseApiRequest.call(
-				this,
-				'GET',
-				'/EntityDefinitions',
-				undefined,
-				{
-					$select: 'LogicalName,EntitySetName',
-					$filter: `EntitySetName eq '${tableValue}'`,
-				},
-			)) as DataverseApiResponse;
-			
-			if (entityResponse.value && entityResponse.value.length > 0) {
-				logicalName = (entityResponse.value[0] as { LogicalName: string }).LogicalName;
-			}
-		} catch {
-			// Continue with table name as logical name
-		}
-
-		// Fetch field metadata with expanded OptionSet/GlobalOptionSet
-		let response: IDataObject;
-		try {
-			response = (await dataverseApiRequest.call(
-				this,
-				'GET',
-				`/EntityDefinitions(LogicalName='${logicalName}')/Attributes(LogicalName='${choiceFieldName}')`,
-				undefined,
-				{
-					$select: 'LogicalName,AttributeType',
-					$expand: 'OptionSet($select=Options),GlobalOptionSet($select=Options,Name)',
-				},
-			)) as IDataObject;
-		} catch (error) {
-			const errorMsg = error instanceof Error ? error.message : String(error);
-			return [
-				{
-					name: `⚠️ Could not load field: ${choiceFieldName}`,
-					value: '',
-				},
-				{
-					name: `Error: ${errorMsg}`,
-					value: '',
-				},
-			];
-		}
-
-		const attributeType = response.AttributeType as string;
-
-		// Check if this is a choice field
-		if (!['Picklist', 'State', 'Status'].includes(attributeType)) {
-			return [
-				{
-					name: `⚠️ Field "${choiceFieldName}" is not a choice field`,
-					value: '',
-				},
-				{
-					name: `Type: ${attributeType}`,
-					value: '',
-				},
-			];
-		}
-
-		// Get options from either OptionSet (local) or GlobalOptionSet (global)
-		let options: Array<{ Value: number; Label: { UserLocalizedLabel: { Label: string } } }> = [];
-		let choiceType = 'Local Choice';
-
-		if (response.OptionSet && (response.OptionSet as IDataObject).Options) {
-			options = ((response.OptionSet as IDataObject).Options as Array<{ Value: number; Label: { UserLocalizedLabel: { Label: string } } }>);
-			choiceType = 'Local Choice';
-		} else if (response.GlobalOptionSet && (response.GlobalOptionSet as IDataObject).Options) {
-			options = ((response.GlobalOptionSet as IDataObject).Options as Array<{ Value: number; Label: { UserLocalizedLabel: { Label: string } } }>);
-			const globalName = (response.GlobalOptionSet as IDataObject).Name as string;
-			choiceType = `Global Choice (${globalName})`;
-		}
-
-		if (options.length === 0) {
-			return [
-				{
-					name: 'No options available for this field',
-					value: '',
-				},
-			];
-		}
-
-		// Add header showing choice type
-		returnData.push({
-			name: `━━━ ${choiceType} ━━━`,
-			value: '',
-		});
-
-		// Format options as "Label (Value)"
-		for (const option of options) {
-			const label = option.Label?.UserLocalizedLabel?.Label || `Option ${option.Value}`;
-			const value = option.Value;
-			const name = `${label} (${value})`;
-
-			returnData.push({
-				name,
-				value: value.toString(),
-			});
-		}
-
-		return returnData;
-	} catch (error) {
-		const errorMsg = error instanceof Error ? error.message : String(error);
-		return [
-			{
-				name: `⚠️ Error loading choice options`,
-				value: '',
-			},
-			{
-				name: `${errorMsg}`,
-				value: '',
-			},
-		];
-	}
 }
 
 /**
