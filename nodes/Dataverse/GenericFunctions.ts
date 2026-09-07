@@ -1391,21 +1391,48 @@ async function buildLookupBindIdentifier(
  * numeric value themselves. Supports both Local Choice (OptionSet) and Global Choice
  * (GlobalOptionSet) fields.
  */
+const CHOICE_ATTRIBUTE_METADATA_CAST: Record<string, string> = {
+	Picklist: 'Microsoft.Dynamics.CRM.PicklistAttributeMetadata',
+	State: 'Microsoft.Dynamics.CRM.StateAttributeMetadata',
+	Status: 'Microsoft.Dynamics.CRM.StatusAttributeMetadata',
+};
+
 async function resolveChoiceLabelToValue(
 	this: IExecuteFunctions,
 	logicalName: string,
 	fieldName: string,
 	label: string,
 	itemIndex?: number,
-): Promise<number | null> {
+): Promise<{ value: number | null; availableLabels: string[] }> {
 	try {
-		const response = (await dataverseApiRequest.call(
+		// The OptionSet/GlobalOptionSet navigation properties only exist on the specific derived
+		// attribute metadata type (e.g. PicklistAttributeMetadata), not on the base
+		// AttributeMetadata type - so the attribute type must be looked up first, then the
+		// request re-issued with the matching `/Microsoft.Dynamics.CRM.<Type>AttributeMetadata`
+		// cast segment, or Dataverse rejects the $expand with "Could not find a property named
+		// 'OptionSet' on type 'Microsoft.Dynamics.CRM.AttributeMetadata'".
+		const typeResponse = (await dataverseApiRequest.call(
 			this,
 			'GET',
 			`/EntityDefinitions(LogicalName='${logicalName}')/Attributes(LogicalName='${fieldName}')`,
 			undefined,
+			{ $select: 'LogicalName,AttributeType' },
+			itemIndex,
+		)) as IDataObject;
+
+		const attributeType = typeResponse.AttributeType as string | undefined;
+		const castSegment = attributeType ? CHOICE_ATTRIBUTE_METADATA_CAST[attributeType] : undefined;
+		if (!castSegment) {
+			throw new Error(`Field "${fieldName}" is not a Choice/Picklist/State/Status field (type: ${attributeType ?? 'unknown'}).`);
+		}
+
+		const response = (await dataverseApiRequest.call(
+			this,
+			'GET',
+			`/EntityDefinitions(LogicalName='${logicalName}')/Attributes(LogicalName='${fieldName}')/${castSegment}`,
+			undefined,
 			{
-				$select: 'LogicalName,AttributeType',
+				$select: 'LogicalName',
 				$expand: 'OptionSet($select=Options),GlobalOptionSet($select=Options,Name)',
 			},
 			itemIndex,
@@ -1417,14 +1444,19 @@ async function resolveChoiceLabelToValue(
 			Label?: { UserLocalizedLabel?: { Label?: string } };
 		}>;
 
+		const availableLabels = options
+			.map((option) => option.Label?.UserLocalizedLabel?.Label)
+			.filter((optionLabel): optionLabel is string => !!optionLabel);
+
 		const normalizedLabel = label.trim().toLowerCase();
 		const match = options.find(
 			(option) => option.Label?.UserLocalizedLabel?.Label?.trim().toLowerCase() === normalizedLabel,
 		);
 
-		return match ? match.Value : null;
-	} catch {
-		return null;
+		return { value: match ? match.Value : null, availableLabels };
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		throw new Error(`Could not load choice options for field "${fieldName}" to resolve label "${label}": ${errorMessage}`);
 	}
 }
 
@@ -1474,14 +1506,22 @@ async function coerceFieldValue(
 				return numericValue;
 			}
 			// Not a number - treat it as a choice display label and resolve it to its value
-			const resolvedValue = await resolveChoiceLabelToValue.call(
+			const { value: resolvedValue, availableLabels } = await resolveChoiceLabelToValue.call(
 				this,
 				logicalName,
 				fieldName,
 				String(value),
 				itemIndex,
 			);
-			return resolvedValue ?? value;
+			if (resolvedValue === null) {
+				const optionsHint = availableLabels.length > 0
+					? ` Available options: ${availableLabels.join(', ')}.`
+					: ' No options were found for this field - double check the field name.';
+				throw new Error(
+					`Could not resolve choice value for field "${fieldName}": no option matches "${value}".${optionsHint}`,
+				);
+			}
+			return resolvedValue;
 		}
 		default:
 			// Text-like fields (String, Memo) or unrecognized types: ensure non-string
