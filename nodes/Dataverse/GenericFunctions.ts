@@ -1116,6 +1116,71 @@ export async function buildRecordIdentifierAsync(
 }
 
 /**
+ * Resolve a record's GUID from either a direct record ID or via alternate keys (which may
+ * themselves include Lookup-typed keys, resolved the same way as `buildRecordIdentifierAsync`).
+ * Used by operations (Share/Revoke/Assign) that need the raw GUID to build an SDK-message
+ * request body, rather than an OData key predicate for a URL.
+ */
+export async function resolveRecordId(
+	this: IExecuteFunctions,
+	table: string,
+	recordIdType: string,
+	recordId: string | undefined,
+	alternateKeys: Array<{ name: string; value: string }> | undefined,
+	itemIndex?: number,
+): Promise<string> {
+	if (recordIdType === 'id' && recordId) {
+		return recordId;
+	}
+
+	if (!alternateKeys || alternateKeys.length === 0) {
+		throw new Error('Either a record ID or alternate keys must be provided.');
+	}
+
+	const logicalName = await resolveLogicalName.call(this, table, itemIndex);
+	const [recordIdentifier, primaryIdAttribute] = await Promise.all([
+		buildRecordIdentifierAsync.call(this, table, 'alternateKey', undefined, alternateKeys, itemIndex),
+		getPrimaryIdAttribute.call(this, logicalName, itemIndex),
+	]);
+
+	const recordResponse = (await dataverseApiRequest.call(
+		this,
+		'GET',
+		`/${table}(${recordIdentifier})`,
+		undefined,
+		{ $select: primaryIdAttribute },
+		itemIndex,
+	)) as IDataObject;
+
+	const resolvedId = recordResponse[primaryIdAttribute] as string;
+	if (!resolvedId) {
+		throw new Error(`Could not find record with alternate keys: ${recordIdentifier}`);
+	}
+	return resolvedId;
+}
+
+/**
+ * Build an entity reference object (`{'@odata.type': 'Microsoft.Dynamics.CRM.<logicalname>',
+ * '<primary-id-attribute>': guid}`) for use as the Target parameter of Dataverse SDK-message
+ * actions (GrantAccess, RevokeAccess, Assign). Uses the table's actual LogicalName and primary
+ * ID attribute rather than assuming `${table}id`, which is wrong whenever `table` is the plural
+ * EntitySetName (as it always is for record operations - e.g. "accounts", not "account").
+ */
+export async function buildEntityReference(
+	this: IExecuteFunctions,
+	table: string,
+	recordId: string,
+	itemIndex?: number,
+): Promise<IDataObject> {
+	const logicalName = await resolveLogicalName.call(this, table, itemIndex);
+	const primaryIdAttribute = await getPrimaryIdAttribute.call(this, logicalName, itemIndex);
+	return {
+		'@odata.type': `Microsoft.Dynamics.CRM.${logicalName}`,
+		[primaryIdAttribute]: recordId,
+	};
+}
+
+/**
  * Convert field array to object for API requests
  */
 export function fieldsToObject(fields: Array<{ name: string; value: string }>): IDataObject {

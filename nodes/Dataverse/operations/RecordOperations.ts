@@ -4,6 +4,8 @@ import {
 	dataverseApiBinaryRequest,
 	getImageAndFileFields,
 	buildRecordIdentifierAsync,
+	resolveRecordId,
+	buildEntityReference,
 	fieldsToRequestBody,
 	buildODataQuery,
 } from '../GenericFunctions';
@@ -466,26 +468,8 @@ export async function shareRecord(
 	if (recordIdType === 'id') {
 		recordId = this.getNodeParameter('recordId', itemIndex) as string;
 	} else {
-		// Lookup record by alternate keys to get the GUID
 		const alternateKeys = this.getNodeParameter('alternateKeys.key', itemIndex, []) as AlternateKey[];
-		const recordIdentifier = await buildRecordIdentifierAsync.call(this, table, 'alternateKey', undefined, alternateKeys, itemIndex);
-		
-		// Fetch the record to get its GUID
-		const recordResponse = (await dataverseApiRequest.call(
-			this,
-			'GET',
-			`/${table}(${recordIdentifier})`,
-			undefined,
-			{
-				$select: `${table}id`,
-			},
-			itemIndex,
-		)) as IDataObject;
-		
-		recordId = recordResponse[`${table}id`] as string;
-		if (!recordId) {
-			throw new Error(`Could not find record with alternate keys: ${recordIdentifier}`);
-		}
+		recordId = await resolveRecordId.call(this, table, 'alternateKey', undefined, alternateKeys, itemIndex);
 	}
 
 	let principalId = '';
@@ -562,10 +546,7 @@ export async function shareRecord(
 
 	// Build GrantAccess request
 	const body = {
-		Target: {
-			'@odata.type': `Microsoft.Dynamics.CRM.${table}`,
-			[`${table}id`]: recordId,
-		},
+		Target: await buildEntityReference.call(this, table, recordId, itemIndex),
 		PrincipalAccess: {
 			Principal: {
 				'@odata.type': `Microsoft.Dynamics.CRM.${principalType}`,
@@ -596,7 +577,9 @@ export async function shareRecord(
 
 /**
  * List users and teams who have access to a record
- * Uses RetrieveSharedPrincipalsAndAccess action
+ * Uses the RetrieveSharedPrincipalsAndAccess Function (not an Action - it's read-only, so
+ * Dataverse exposes it as a GET-able OData Function with the Target passed as a URL parameter
+ * alias, rather than a POST with a JSON body like GrantAccess/RevokeAccess/Assign).
  */
 export async function listSharedUsers(
 	this: IExecuteFunctions,
@@ -610,43 +593,19 @@ export async function listSharedUsers(
 	if (recordIdType === 'id') {
 		recordId = this.getNodeParameter('recordId', itemIndex) as string;
 	} else {
-		// Lookup record by alternate keys to get the GUID
 		const alternateKeys = this.getNodeParameter('alternateKeys.key', itemIndex, []) as AlternateKey[];
-		const recordIdentifier = await buildRecordIdentifierAsync.call(this, table, 'alternateKey', undefined, alternateKeys, itemIndex);
-		
-		// Fetch the record to get its GUID
-		const recordResponse = (await dataverseApiRequest.call(
-			this,
-			'GET',
-			`/${table}(${recordIdentifier})`,
-			undefined,
-			{
-				$select: `${table}id`,
-			},
-			itemIndex,
-		)) as IDataObject;
-		
-		recordId = recordResponse[`${table}id`] as string;
-		if (!recordId) {
-			throw new Error(`Could not find record with alternate keys: ${recordIdentifier}`);
-		}
+		recordId = await resolveRecordId.call(this, table, 'alternateKey', undefined, alternateKeys, itemIndex);
 	}
 
-	// Build RetrieveSharedPrincipalsAndAccess request
-	const body = {
-		Target: {
-			'@odata.type': `Microsoft.Dynamics.CRM.${table}`,
-			[`${table}id`]: recordId,
-		},
-	};
-
-	// Execute RetrieveSharedPrincipalsAndAccess action
+	// The Function's Target parameter uses an @odata.id-style entity reference (entity set name
+	// + GUID), unlike the @odata.type/id-attribute style used by Action Target parameters.
+	const targetRef = `{'@odata.id':'${table}(${recordId})'}`;
 	const response = (await dataverseApiRequest.call(
 		this,
-		'POST',
-		'/RetrieveSharedPrincipalsAndAccess',
-		body,
+		'GET',
+		'/RetrieveSharedPrincipalsAndAccess(Target=@tid)',
 		undefined,
+		{ '@tid': targetRef },
 		itemIndex,
 	)) as IDataObject;
 
@@ -674,26 +633,8 @@ export async function revokeAccess(
 	if (recordIdType === 'id') {
 		recordId = this.getNodeParameter('recordId', itemIndex) as string;
 	} else {
-		// Lookup record by alternate keys to get the GUID
 		const alternateKeys = this.getNodeParameter('alternateKeys.key', itemIndex, []) as AlternateKey[];
-		const recordIdentifier = await buildRecordIdentifierAsync.call(this, table, 'alternateKey', undefined, alternateKeys, itemIndex);
-		
-		// Fetch the record to get its GUID
-		const recordResponse = (await dataverseApiRequest.call(
-			this,
-			'GET',
-			`/${table}(${recordIdentifier})`,
-			undefined,
-			{
-				$select: `${table}id`,
-			},
-			itemIndex,
-		)) as IDataObject;
-		
-		recordId = recordResponse[`${table}id`] as string;
-		if (!recordId) {
-			throw new Error(`Could not find record with alternate keys: ${recordIdentifier}`);
-		}
+		recordId = await resolveRecordId.call(this, table, 'alternateKey', undefined, alternateKeys, itemIndex);
 	}
 
 	let principalId = '';
@@ -751,10 +692,7 @@ export async function revokeAccess(
 
 	// Build RevokeAccess request
 	const body = {
-		Target: {
-			'@odata.type': `Microsoft.Dynamics.CRM.${table}`,
-			[`${table}id`]: recordId,
-		},
+		Target: await buildEntityReference.call(this, table, recordId, itemIndex),
 		Revokee: {
 			'@odata.type': `Microsoft.Dynamics.CRM.${principalType}`,
 			[`${principalType}id`]: principalId,
@@ -799,17 +737,7 @@ export async function assignRecord(
 		if (alternateKeys.length === 0) {
 			throw new Error('At least one alternate key must be provided');
 		}
-		// For Assign, we need the actual GUID, so we need to fetch it first
-		const recordIdentifier = await buildRecordIdentifierAsync.call(this, table, 'alternateKey', undefined, alternateKeys, itemIndex);
-		const recordResponse = (await dataverseApiRequest.call(
-			this,
-			'GET',
-			`/${table}(${recordIdentifier})`,
-			undefined,
-			{ $select: `${table}id` },
-			itemIndex,
-		)) as IDataObject;
-		recordId = recordResponse[`${table}id`] as string;
+		recordId = await resolveRecordId.call(this, table, 'alternateKey', undefined, alternateKeys, itemIndex);
 	}
 
 	// Get assignee ID
@@ -866,10 +794,7 @@ export async function assignRecord(
 
 	// Build Assign request
 	const body = {
-		Target: {
-			'@odata.type': `Microsoft.Dynamics.CRM.${table}`,
-			[`${table}id`]: recordId,
-		},
+		Target: await buildEntityReference.call(this, table, recordId, itemIndex),
 		Assignee: {
 			'@odata.type': `Microsoft.Dynamics.CRM.${assigneeType}`,
 			[`${assigneeType}id`]: assigneeId,
