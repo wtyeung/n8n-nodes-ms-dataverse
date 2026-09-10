@@ -753,50 +753,7 @@ export const shareOperationFields: INodeProperties[] = [
 		description: 'Type of principal to share with',
 	},
 	{
-		displayName: 'Principal ID Type',
-		name: 'principalIdType',
-		type: 'options',
-		options: [
-			{
-				name: 'GUID',
-				value: 'guid',
-				description: 'Use the principal ID (GUID)',
-			},
-			{
-				name: 'UPN (User Principal Name)',
-				value: 'upn',
-				description: 'Use email/UPN (will lookup the GUID)',
-			},
-		],
-		default: 'upn',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['record'],
-				operation: ['shareAccessAdd'],
-				principalType: ['systemuser'],
-			},
-		},
-		description: 'How to identify the user',
-	},
-	{
-		displayName: 'Principal ID (GUID)',
-		name: 'principalId',
-		type: 'string',
-		required: true,
-		default: '',
-		displayOptions: {
-			show: {
-				resource: ['record'],
-				operation: ['shareAccessAdd'],
-				principalIdType: ['guid'],
-			},
-		},
-		description: 'GUID of the user or team',
-		placeholder: 'e.g. 00000000-0000-0000-0000-000000000000',
-	},
-	{
-		displayName: 'User Principal Name (Email)',
+		displayName: 'User Principal Name or ID',
 		name: 'principalUpn',
 		type: 'string',
 		required: true,
@@ -805,14 +762,14 @@ export const shareOperationFields: INodeProperties[] = [
 			show: {
 				resource: ['record'],
 				operation: ['shareAccessAdd'],
-				principalIdType: ['upn'],
+				principalType: ['systemuser'],
 			},
 		},
-		description: 'Email address or User Principal Name of the user',
-		placeholder: 'e.g. user@example.com',
+		description: 'Email address/User Principal Name of the user, or their GUID (detected automatically)',
+		placeholder: 'e.g. user@example.com, or a GUID',
 	},
 	{
-		displayName: 'Team Name',
+		displayName: 'Team Name or ID',
 		name: 'teamName',
 		type: 'string',
 		required: true,
@@ -824,8 +781,8 @@ export const shareOperationFields: INodeProperties[] = [
 				principalType: ['team'],
 			},
 		},
-		description: 'Name of the team (will lookup the GUID)',
-		placeholder: 'e.g. Sales Team',
+		description: 'Name of the team, or its GUID (detected automatically)',
+		placeholder: 'e.g. Sales Team, or a GUID',
 	},
 	{
 		displayName: 'Access Rights',
@@ -903,50 +860,7 @@ export const revokeAccessOperationFields: INodeProperties[] = [
 		description: 'Type of principal to revoke access from',
 	},
 	{
-		displayName: 'Principal ID Type',
-		name: 'principalIdType',
-		type: 'options',
-		options: [
-			{
-				name: 'GUID',
-				value: 'guid',
-				description: 'Use the principal ID (GUID)',
-			},
-			{
-				name: 'UPN (User Principal Name)',
-				value: 'upn',
-				description: 'Use email/UPN (will lookup the GUID)',
-			},
-		],
-		default: 'upn',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['record'],
-				operation: ['shareAccessRevoke'],
-				principalType: ['systemuser'],
-			},
-		},
-		description: 'How to identify the user',
-	},
-	{
-		displayName: 'Principal ID (GUID)',
-		name: 'principalId',
-		type: 'string',
-		required: true,
-		default: '',
-		displayOptions: {
-			show: {
-				resource: ['record'],
-				operation: ['shareAccessRevoke'],
-				principalIdType: ['guid'],
-			},
-		},
-		description: 'GUID of the user or team',
-		placeholder: 'e.g. 00000000-0000-0000-0000-000000000000',
-	},
-	{
-		displayName: 'User Principal Name (Email)',
+		displayName: 'User Principal Name or ID',
 		name: 'principalUpn',
 		type: 'string',
 		required: true,
@@ -955,14 +869,14 @@ export const revokeAccessOperationFields: INodeProperties[] = [
 			show: {
 				resource: ['record'],
 				operation: ['shareAccessRevoke'],
-				principalIdType: ['upn'],
+				principalType: ['systemuser'],
 			},
 		},
-		description: 'Email address or User Principal Name of the user',
-		placeholder: 'e.g. user@example.com',
+		description: 'Email address/User Principal Name of the user, or their GUID (detected automatically)',
+		placeholder: 'e.g. user@example.com, or a GUID',
 	},
 	{
-		displayName: 'Team Name',
+		displayName: 'Team Name or ID',
 		name: 'teamName',
 		type: 'string',
 		required: true,
@@ -974,7 +888,7 @@ export const revokeAccessOperationFields: INodeProperties[] = [
 				principalType: ['team'],
 			},
 		},
-		description: 'Name of the team (will lookup the GUID)',
+		description: 'Name of the team, or its GUID (detected automatically)',
 		placeholder: 'e.g. Sales Team',
 	},
 ];
@@ -1007,50 +921,7 @@ export const assignOperationFields: INodeProperties[] = [
 		description: 'Type of assignee (user or team)',
 	},
 	{
-		displayName: 'Assignee ID Type',
-		name: 'assigneeIdType',
-		type: 'options',
-		options: [
-			{
-				name: 'GUID',
-				value: 'guid',
-				description: 'Use the assignee ID (GUID)',
-			},
-			{
-				name: 'UPN (User Principal Name)',
-				value: 'upn',
-				description: 'Use email/UPN (will lookup the GUID)',
-			},
-		],
-		default: 'upn',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['record'],
-				operation: ['assign'],
-				assigneeType: ['systemuser'],
-			},
-		},
-		description: 'How to identify the user',
-	},
-	{
-		displayName: 'Assignee ID (GUID)',
-		name: 'assigneeId',
-		type: 'string',
-		required: true,
-		default: '',
-		displayOptions: {
-			show: {
-				resource: ['record'],
-				operation: ['assign'],
-				assigneeIdType: ['guid'],
-			},
-		},
-		description: 'GUID of the user or team to assign to',
-		placeholder: 'e.g. 00000000-0000-0000-0000-000000000000',
-	},
-	{
-		displayName: 'User Principal Name (Email)',
+		displayName: 'User Principal Name or ID',
 		name: 'assigneeUpn',
 		type: 'string',
 		required: true,
@@ -1059,14 +930,14 @@ export const assignOperationFields: INodeProperties[] = [
 			show: {
 				resource: ['record'],
 				operation: ['assign'],
-				assigneeIdType: ['upn'],
+				assigneeType: ['systemuser'],
 			},
 		},
-		description: 'Email address or User Principal Name of the user to assign to',
-		placeholder: 'e.g. user@example.com',
+		description: 'Email address/User Principal Name of the user to assign to, or their GUID (detected automatically)',
+		placeholder: 'e.g. user@example.com, or a GUID',
 	},
 	{
-		displayName: 'Team Name',
+		displayName: 'Team Name or ID',
 		name: 'assigneeTeamName',
 		type: 'string',
 		required: true,
@@ -1078,8 +949,8 @@ export const assignOperationFields: INodeProperties[] = [
 				assigneeType: ['team'],
 			},
 		},
-		description: 'Name of the team to assign to (will lookup the GUID)',
-		placeholder: 'e.g. Sales Team',
+		description: 'Name of the team to assign to, or its GUID (detected automatically)',
+		placeholder: 'e.g. Sales Team, or a GUID',
 	},
 ];
 

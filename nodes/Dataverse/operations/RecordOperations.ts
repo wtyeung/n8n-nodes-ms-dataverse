@@ -8,6 +8,7 @@ import {
 	buildEntityReference,
 	fieldsToRequestBody,
 	buildODataQuery,
+	isGuid,
 } from '../GenericFunctions';
 import type { FieldValue, AlternateKey, DataverseApiResponse } from '../types';
 
@@ -476,53 +477,65 @@ export async function shareRecord(
 
 	// Lookup principal ID based on type
 	if (principalType === 'systemuser') {
-		const principalIdType = this.getNodeParameter('principalIdType', itemIndex) as string;
-		
-		if (principalIdType === 'guid') {
-			principalId = this.getNodeParameter('principalId', itemIndex) as string;
+		// Backward compatibility: workflows saved before the User field was unified into a
+		// single auto-detecting field still have a legacy 'principalIdType'/'principalId' pair
+		// stored - honor it if present, falling back to auto-detection on 'principalUpn'.
+		const legacyIdType = this.getNodeParameter('principalIdType', itemIndex, '') as string;
+		if (legacyIdType === 'guid') {
+			principalId = this.getNodeParameter('principalId', itemIndex, '') as string;
 		} else {
-			// Lookup user by UPN
+			// Auto-detect whether a GUID or a UPN/email was provided
 			const upn = this.getNodeParameter('principalUpn', itemIndex) as string;
-			const userResponse = (await dataverseApiRequest.call(
+			if (isGuid(upn)) {
+				principalId = upn;
+			} else {
+				// Lookup user by UPN
+				const userResponse = (await dataverseApiRequest.call(
+					this,
+					'GET',
+					'/systemusers',
+					undefined,
+					{
+						$select: 'systemuserid',
+						$filter: `domainname eq '${upn}'`,
+						$top: '1',
+					},
+					itemIndex,
+				)) as DataverseApiResponse;
+
+				if (!userResponse.value || userResponse.value.length === 0) {
+					throw new Error(`User with UPN '${upn}' not found`);
+				}
+
+				principalId = (userResponse.value[0] as IDataObject).systemuserid as string;
+			}
+		}
+	} else {
+		// Auto-detect whether a GUID or a team name was provided
+		const teamName = this.getNodeParameter('teamName', itemIndex) as string;
+		if (isGuid(teamName)) {
+			principalId = teamName;
+		} else {
+			// Lookup team by name
+			const teamResponse = (await dataverseApiRequest.call(
 				this,
 				'GET',
-				'/systemusers',
+				'/teams',
 				undefined,
 				{
-					$select: 'systemuserid',
-					$filter: `domainname eq '${upn}'`,
+					$select: 'teamid',
+					$filter: `name eq '${teamName}'`,
 					$top: '1',
 				},
 				itemIndex,
 			)) as DataverseApiResponse;
 
-			if (!userResponse.value || userResponse.value.length === 0) {
-				throw new Error(`User with UPN '${upn}' not found`);
+			if (!teamResponse.value || teamResponse.value.length === 0) {
+				throw new Error(`Team with name '${teamName}' not found`);
 			}
 
-			principalId = (userResponse.value[0] as IDataObject).systemuserid as string;
+			principalId = (teamResponse.value[0] as IDataObject).teamid as string;
 		}
-	} else {
-		// Lookup team by name
-		const teamName = this.getNodeParameter('teamName', itemIndex) as string;
-		const teamResponse = (await dataverseApiRequest.call(
-			this,
-			'GET',
-			'/teams',
-			undefined,
-			{
-				$select: 'teamid',
-				$filter: `name eq '${teamName}'`,
-				$top: '1',
-			},
-			itemIndex,
-		)) as DataverseApiResponse;
-
-		if (!teamResponse.value || teamResponse.value.length === 0) {
-			throw new Error(`Team with name '${teamName}' not found`);
-		}
-
-		principalId = (teamResponse.value[0] as IDataObject).teamid as string;
 	}
 
 	// Calculate access mask from selected rights
@@ -641,53 +654,65 @@ export async function revokeAccess(
 
 	// Lookup principal ID based on type
 	if (principalType === 'systemuser') {
-		const principalIdType = this.getNodeParameter('principalIdType', itemIndex) as string;
-		
-		if (principalIdType === 'guid') {
-			principalId = this.getNodeParameter('principalId', itemIndex) as string;
+		// Backward compatibility: workflows saved before the User field was unified into a
+		// single auto-detecting field still have a legacy 'principalIdType'/'principalId' pair
+		// stored - honor it if present, falling back to auto-detection on 'principalUpn'.
+		const legacyIdType = this.getNodeParameter('principalIdType', itemIndex, '') as string;
+		if (legacyIdType === 'guid') {
+			principalId = this.getNodeParameter('principalId', itemIndex, '') as string;
 		} else {
-			// Lookup user by UPN
+			// Auto-detect whether a GUID or a UPN/email was provided
 			const upn = this.getNodeParameter('principalUpn', itemIndex) as string;
-			const userResponse = (await dataverseApiRequest.call(
+			if (isGuid(upn)) {
+				principalId = upn;
+			} else {
+				// Lookup user by UPN
+				const userResponse = (await dataverseApiRequest.call(
+					this,
+					'GET',
+					'/systemusers',
+					undefined,
+					{
+						$select: 'systemuserid',
+						$filter: `domainname eq '${upn}'`,
+						$top: '1',
+					},
+					itemIndex,
+				)) as DataverseApiResponse;
+
+				if (!userResponse.value || userResponse.value.length === 0) {
+					throw new Error(`User with UPN '${upn}' not found`);
+				}
+
+				principalId = (userResponse.value[0] as IDataObject).systemuserid as string;
+			}
+		}
+	} else {
+		// Auto-detect whether a GUID or a team name was provided
+		const teamName = this.getNodeParameter('teamName', itemIndex) as string;
+		if (isGuid(teamName)) {
+			principalId = teamName;
+		} else {
+			// Lookup team by name
+			const teamResponse = (await dataverseApiRequest.call(
 				this,
 				'GET',
-				'/systemusers',
+				'/teams',
 				undefined,
 				{
-					$select: 'systemuserid',
-					$filter: `domainname eq '${upn}'`,
+					$select: 'teamid',
+					$filter: `name eq '${teamName}'`,
 					$top: '1',
 				},
 				itemIndex,
 			)) as DataverseApiResponse;
 
-			if (!userResponse.value || userResponse.value.length === 0) {
-				throw new Error(`User with UPN '${upn}' not found`);
+			if (!teamResponse.value || teamResponse.value.length === 0) {
+				throw new Error(`Team with name '${teamName}' not found`);
 			}
 
-			principalId = (userResponse.value[0] as IDataObject).systemuserid as string;
+			principalId = (teamResponse.value[0] as IDataObject).teamid as string;
 		}
-	} else {
-		// Lookup team by name
-		const teamName = this.getNodeParameter('teamName', itemIndex) as string;
-		const teamResponse = (await dataverseApiRequest.call(
-			this,
-			'GET',
-			'/teams',
-			undefined,
-			{
-				$select: 'teamid',
-				$filter: `name eq '${teamName}'`,
-				$top: '1',
-			},
-			itemIndex,
-		)) as DataverseApiResponse;
-
-		if (!teamResponse.value || teamResponse.value.length === 0) {
-			throw new Error(`Team with name '${teamName}' not found`);
-		}
-
-		principalId = (teamResponse.value[0] as IDataObject).teamid as string;
 	}
 
 	// Build RevokeAccess request
@@ -744,52 +769,65 @@ export async function assignRecord(
 	let assigneeId = '';
 
 	if (assigneeType === 'systemuser') {
-		const assigneeIdType = this.getNodeParameter('assigneeIdType', itemIndex) as string;
-		if (assigneeIdType === 'guid') {
-			assigneeId = this.getNodeParameter('assigneeId', itemIndex) as string;
+		// Backward compatibility: workflows saved before the User field was unified into a
+		// single auto-detecting field still have a legacy 'assigneeIdType'/'assigneeId' pair
+		// stored - honor it if present, falling back to auto-detection on 'assigneeUpn'.
+		const legacyIdType = this.getNodeParameter('assigneeIdType', itemIndex, '') as string;
+		if (legacyIdType === 'guid') {
+			assigneeId = this.getNodeParameter('assigneeId', itemIndex, '') as string;
 		} else {
-			// Lookup user by UPN
+			// Auto-detect whether a GUID or a UPN/email was provided
 			const upn = this.getNodeParameter('assigneeUpn', itemIndex) as string;
-			const userResponse = (await dataverseApiRequest.call(
+			if (isGuid(upn)) {
+				assigneeId = upn;
+			} else {
+				// Lookup user by UPN
+				const userResponse = (await dataverseApiRequest.call(
+					this,
+					'GET',
+					'/systemusers',
+					undefined,
+					{
+						$select: 'systemuserid',
+						$filter: `domainname eq '${upn}'`,
+						$top: '1',
+					},
+					itemIndex,
+				)) as DataverseApiResponse;
+
+				if (!userResponse.value || userResponse.value.length === 0) {
+					throw new Error(`User with UPN '${upn}' not found`);
+				}
+
+				assigneeId = (userResponse.value[0] as IDataObject).systemuserid as string;
+			}
+		}
+	} else {
+		// Auto-detect whether a GUID or a team name was provided
+		const teamName = this.getNodeParameter('assigneeTeamName', itemIndex) as string;
+		if (isGuid(teamName)) {
+			assigneeId = teamName;
+		} else {
+			// Lookup team by name
+			const teamResponse = (await dataverseApiRequest.call(
 				this,
 				'GET',
-				'/systemusers',
+				'/teams',
 				undefined,
 				{
-					$select: 'systemuserid',
-					$filter: `domainname eq '${upn}'`,
+					$select: 'teamid',
+					$filter: `name eq '${teamName}'`,
 					$top: '1',
 				},
 				itemIndex,
 			)) as DataverseApiResponse;
 
-			if (!userResponse.value || userResponse.value.length === 0) {
-				throw new Error(`User with UPN '${upn}' not found`);
+			if (!teamResponse.value || teamResponse.value.length === 0) {
+				throw new Error(`Team with name '${teamName}' not found`);
 			}
 
-			assigneeId = (userResponse.value[0] as IDataObject).systemuserid as string;
+			assigneeId = (teamResponse.value[0] as IDataObject).teamid as string;
 		}
-	} else {
-		// Lookup team by name
-		const teamName = this.getNodeParameter('assigneeTeamName', itemIndex) as string;
-		const teamResponse = (await dataverseApiRequest.call(
-			this,
-			'GET',
-			'/teams',
-			undefined,
-			{
-				$select: 'teamid',
-				$filter: `name eq '${teamName}'`,
-				$top: '1',
-			},
-			itemIndex,
-		)) as DataverseApiResponse;
-
-		if (!teamResponse.value || teamResponse.value.length === 0) {
-			throw new Error(`Team with name '${teamName}' not found`);
-		}
-
-		assigneeId = (teamResponse.value[0] as IDataObject).teamid as string;
 	}
 
 	// Build Assign request

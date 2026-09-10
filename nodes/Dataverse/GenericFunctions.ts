@@ -1004,6 +1004,15 @@ export async function getAlternateKeyFields(
 const GUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 /**
+ * Check whether a value looks like a GUID, used to auto-detect whether a user/team identifier
+ * field was given a raw GUID or a name/UPN to look up, without requiring a separate "ID Type"
+ * selector field.
+ */
+export function isGuid(value: unknown): boolean {
+	return GUID_REGEX.test(String(value).trim());
+}
+
+/**
  * Format an alternate key's field name for use in an OData key predicate. Per Dataverse's Web
  * API rules, a Lookup-backed alternate key attribute must be referenced by its "Lookup Property"
  * name (`_<logicalname>_value`), not the plain attribute logical name - e.g.
