@@ -1227,7 +1227,7 @@ async function getCached<T>(context: object, cacheKey: string, fetcher: () => Pr
  * Resolve a table value (LogicalName or EntitySetName) to its LogicalName, as required by the
  * `EntityDefinitions(LogicalName='...')` metadata endpoints.
  */
-async function resolveLogicalName(
+export async function resolveLogicalName(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
 	table: string,
 	itemIndex?: number,

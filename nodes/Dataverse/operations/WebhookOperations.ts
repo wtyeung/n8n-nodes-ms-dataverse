@@ -1,5 +1,5 @@
 import type { IExecuteFunctions, IDataObject, INodeExecutionData, IHttpRequestOptions } from 'n8n-workflow';
-import { dataverseApiRequest } from '../GenericFunctions';
+import { dataverseApiRequest, resolveLogicalName } from '../GenericFunctions';
 
 /**
  * Get SDK Message Filter ID for a specific table and operation
@@ -27,25 +27,7 @@ async function getSdkMessageFilterId(
 	};
 
 	// Resolve EntitySetName (plural) → LogicalName (singular) required by primaryobjecttypecode
-	let logicalName = table;
-	try {
-		const entityMeta = (await this.helpers.httpRequestWithAuthentication.call(
-			this,
-			'dataverseOAuth2Api',
-			{
-				method: 'GET',
-				url: `${environmentUrl}/api/data/v9.2/EntityDefinitions`,
-				headers: { 'OData-MaxVersion': '4.0', 'OData-Version': '4.0' },
-				qs: { $select: 'LogicalName,EntitySetName', $filter: `EntitySetName eq '${table}'` },
-				json: true,
-			} as IHttpRequestOptions,
-		)) as { value: Array<{ LogicalName: string }> };
-		if (entityMeta.value?.length) {
-			logicalName = entityMeta.value[0].LogicalName;
-		}
-	} catch {
-		// fall back to raw table value
-	}
+	const logicalName = await resolveLogicalName.call(this, table);
 
 	requestOptions.qs = {
 		...requestOptions.qs as IDataObject,
@@ -347,8 +329,11 @@ export async function listSdkMessageFilters(
 ): Promise<INodeExecutionData[]> {
 	const table = this.getNodeParameter('table', itemIndex, '', { extractValue: true }) as string;
 
+	// Resolve EntitySetName (plural) → LogicalName (singular) required by primaryobjecttypecode
+	const logicalName = await resolveLogicalName.call(this, table, itemIndex);
+
 	const qs: IDataObject = {
-		$filter: `primaryobjecttypecode eq '${table}'`,
+		$filter: `primaryobjecttypecode eq '${logicalName}'`,
 		$select: 'sdkmessagefilterid,primaryobjecttypecode',
 		$expand: 'sdkmessageid($select=name)',
 	};
