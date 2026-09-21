@@ -1102,15 +1102,30 @@ export async function buildRecordIdentifierAsync(
 					}
 					const nestedAlternateKeys = parseAlternateKeyJson(trimmedValue);
 					if (nestedAlternateKeys && nestedAlternateKeys.length > 0) {
-						const targetLogicalName = targets![0];
-						const targetEntitySet = await resolveEntitySetName.call(this, targetLogicalName, itemIndex);
-						const guid = await resolveAlternateKeyToGuid.call(
-							this,
-							targetLogicalName,
-							targetEntitySet,
-							nestedAlternateKeys,
-							itemIndex,
-						);
+						// Try each candidate target table in order (relevant for polymorphic
+						// Lookup/Customer/Owner fields with more than one possible target).
+						let guid: string | null = null;
+						const errors: string[] = [];
+						for (const targetLogicalName of targets!) {
+							try {
+								const targetEntitySet = await resolveEntitySetName.call(this, targetLogicalName, itemIndex);
+								guid = await resolveAlternateKeyToGuid.call(
+									this,
+									targetLogicalName,
+									targetEntitySet,
+									nestedAlternateKeys,
+									itemIndex,
+								);
+								break;
+							} catch (error) {
+								errors.push(`${targetLogicalName}: ${error instanceof Error ? error.message : String(error)}`);
+							}
+						}
+						if (guid === null) {
+							throw new Error(
+								`Could not resolve alternate key for "${key.name}" against any of the possible tables (${targets!.join(', ')}). ${errors.join('; ')}`,
+							);
+						}
 						return `${urlKeyName}=${guid}`;
 					}
 				}
@@ -1434,6 +1449,53 @@ async function resolveAlternateKeyToGuid(
 }
 
 /**
+ * Resolve which of a lookup field's possible target tables (`Targets`) a given value actually
+ * belongs to. Most Lookup fields have a single target, but polymorphic fields like `ownerid`
+ * (Owner: systemuser or team) or `customerid` (Customer: account or contact) can have more than
+ * one. Blindly using the first target is wrong whenever the value actually refers to a record in
+ * a different candidate table - Dataverse rejects an `@odata.bind` pointing at the wrong entity
+ * set for a given GUID/alternate key. For multi-target fields, each candidate is tried in order,
+ * verifying the record actually exists there, until one succeeds.
+ */
+async function resolvePolymorphicLookupTarget(
+	this: IExecuteFunctions,
+	targets: string[],
+	rawValue: unknown,
+	itemIndex?: number,
+): Promise<{ targetEntitySet: string; identifier: string }> {
+	const errors: string[] = [];
+
+	for (const targetLogicalName of targets) {
+		try {
+			const identifier = await buildLookupBindIdentifier.call(this, rawValue, targetLogicalName, itemIndex);
+			const targetEntitySet = await resolveEntitySetName.call(this, targetLogicalName, itemIndex);
+
+			if (targets.length > 1) {
+				// Multiple candidate tables - verify the record actually exists in this one
+				// before committing to it, rather than assuming the first candidate is correct.
+				const primaryIdAttribute = await getPrimaryIdAttribute.call(this, targetLogicalName, itemIndex);
+				await dataverseApiRequest.call(
+					this,
+					'GET',
+					`/${targetEntitySet}(${identifier})`,
+					undefined,
+					{ $select: primaryIdAttribute },
+					itemIndex,
+				);
+			}
+
+			return { targetEntitySet, identifier };
+		} catch (error) {
+			errors.push(`${targetLogicalName}: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+
+	throw new Error(
+		`Could not resolve value "${rawValue}" against any of the possible tables (${targets.join(', ')}). ${errors.join('; ')}`,
+	);
+}
+
+/**
  * Build the identifier used inside an `@odata.bind` reference for a lookup field, supporting
  * either a raw GUID or a JSON object of alternate key field/value pairs on the target table
  * (e.g. `{"accountnumber": "12345"}` or `{"key1": "value1", "key2": "value2"}`).
@@ -1642,9 +1704,12 @@ export async function fieldsToRequestBody(
 				body[`${field.name}@odata.bind`] = null;
 				continue;
 			}
-			const targetLogicalName = targets[0];
-			const targetEntitySet = await resolveEntitySetName.call(this, targetLogicalName, itemIndex);
-			const identifier = await buildLookupBindIdentifier.call(this, field.value, targetLogicalName, itemIndex);
+			const { targetEntitySet, identifier } = await resolvePolymorphicLookupTarget.call(
+				this,
+				targets,
+				field.value,
+				itemIndex,
+			);
 			body[`${field.name}@odata.bind`] = `/${targetEntitySet}(${identifier})`;
 		} else {
 			body[field.name] = (await coerceFieldValue.call(

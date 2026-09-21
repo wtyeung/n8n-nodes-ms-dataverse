@@ -830,21 +830,19 @@ export async function assignRecord(
 		}
 	}
 
-	// Build Assign request
-	const body = {
-		Target: await buildEntityReference.call(this, table, recordId, itemIndex),
-		Assignee: {
-			'@odata.type': `Microsoft.Dynamics.CRM.${assigneeType}`,
-			[`${assigneeType}id`]: assigneeId,
-		},
-	};
-
-	// Execute Assign action
+	// The `Assign` SDK message/action is deprecated by Microsoft in favor of directly updating
+	// the `ownerid` field - see https://learn.microsoft.com/power-apps/developer/data-platform/security-sharing-assigning
+	// ("To assign a record, change the ownerid lookup value to refer to a new principal").
+	// The assignee entity set (systemusers/teams) is already known from the selected Assignee
+	// Type, so no polymorphic-lookup guessing is needed here.
+	const assigneeEntitySet = assigneeType === 'systemuser' ? 'systemusers' : 'teams';
 	await dataverseApiRequest.call(
 		this,
-		'POST',
-		'/Assign',
-		body,
+		'PATCH',
+		`/${table}(${recordId})`,
+		{
+			'ownerid@odata.bind': `/${assigneeEntitySet}(${assigneeId})`,
+		},
 		undefined,
 		itemIndex,
 	);
